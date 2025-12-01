@@ -1,0 +1,136 @@
+import 'package:flutter/material.dart';
+
+import '../../../services/analytics_service.dart';
+
+/// Widget to display personalized insights
+class InsightsWidget extends StatefulWidget {
+  const InsightsWidget({Key? key}) : super(key: key);
+
+  @override
+  State<InsightsWidget> createState() => InsightsWidgetState();
+}
+
+class InsightsWidgetState extends State<InsightsWidget> {
+  final AnalyticsService _analyticsService = AnalyticsService();
+  List<Map<String, dynamic>> _insights = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInsights();
+  }
+
+  Future<void> refresh() async {
+    await _loadInsights();
+  }
+
+  Future<void> _loadInsights() async {
+    try {
+      final insights = await _analyticsService.getInsights(days: 7);
+
+      if (mounted) {
+        setState(() {
+          _insights = insights;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading insights: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return SizedBox(
+        height: 100,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_insights.isEmpty) {
+      return SizedBox.shrink();
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Insights',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          SizedBox(height: 12),
+          ..._insights.take(3).map((insight) => _buildInsightCard(insight)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInsightCard(Map<String, dynamic> insight) {
+    final theme = Theme.of(context);
+    final severity = insight['severity'] as String? ?? 'NEUTRAL';
+
+    Color cardColor;
+    IconData icon;
+
+    switch (severity) {
+      case 'POSITIVE':
+        cardColor = theme.colorScheme.primaryContainer;
+        icon = Icons.star;
+        break;
+      case 'NEGATIVE':
+        cardColor = theme.colorScheme.errorContainer;
+        icon = Icons.warning_amber;
+        break;
+      default:
+        cardColor = theme.colorScheme.secondaryContainer;
+        icon = Icons.info_outline;
+    }
+
+    return Card(
+      margin: EdgeInsets.only(bottom: 8),
+      color: cardColor,
+      child: Padding(
+        padding: EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(icon, color: theme.colorScheme.onSecondaryContainer),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    insight['title'] as String? ?? '',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    insight['message'] as String? ?? '',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              insight['value'] as String? ?? '',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
