@@ -340,6 +340,8 @@ class BlockingChannel(private val context: Context) : MethodChannel.MethodCallHa
                         "strictModeLevel" to (currentSchedule.strictModeLevel ?: "NONE"),
                         "strictModePin" to currentSchedule.strictModePin,
                         "strictModeCooldownMinutes" to currentSchedule.strictModeCooldownMinutes,
+                        "cooldownStartedAt" to currentSchedule.cooldownStartedAt,
+                        "cooldownConfirmed" to currentSchedule.cooldownConfirmed,
                         "message" to currentSchedule.motivationalMessage,
                         "remainingMinutes" to remaining,
                         "blockedApps" to blockedApps.map { mapOf(

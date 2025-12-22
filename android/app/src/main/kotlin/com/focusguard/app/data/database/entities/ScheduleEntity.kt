@@ -34,5 +34,11 @@ data class ScheduleEntity(
     val strictModePin: String? = null, // Encrypted PIN for Easy mode
     
     @ColumnInfo(name = "strict_mode_cooldown_minutes")
-    val strictModeCooldownMinutes: Int? = null // Cooldown duration for Medium mode
+    val strictModeCooldownMinutes: Int? = null, // Cooldown duration for Medium mode
+    
+    @ColumnInfo(name = "cooldown_started_at")
+    val cooldownStartedAt: Long? = null, // When cooldown was initiated
+    
+    @ColumnInfo(name = "cooldown_confirmed")
+    val cooldownConfirmed: Boolean = false // Whether user confirmed after cooldown
 )

@@ -29,7 +29,9 @@ class StrictModeChannel(private val context: Context) : MethodChannel.MethodCall
             "attemptUnlockSchedule" -> attemptUnlockSchedule(call, result)
             "startCooldown" -> startCooldown(call, result)
             "confirmCooldownUnlock" -> confirmCooldownUnlock(call, result)
-"encryptPin" -> encryptPin(call, result)
+            "startScheduleCooldown" -> startScheduleCooldown(call, result)
+            "confirmScheduleCooldownUnlock" -> confirmScheduleCooldownUnlock(call, result)
+            "encryptPin" -> encryptPin(call, result)
             else -> result.notImplemented()
         }
     }
@@ -201,6 +203,52 @@ class StrictModeChannel(private val context: Context) : MethodChannel.MethodCall
             result.success(encrypted)
         } catch (e: Exception) {
             result.error("ENCRYPTION_ERROR", e.message, null)
+        }
+    }
+    
+    private fun startScheduleCooldown(call: MethodCall, result: MethodChannel.Result) {
+        val scheduleId = (call.argument<Number>("scheduleId"))?.toLong() ?: run {
+            result.error("INVALID_ARGS", "Schedule ID is required", null)
+            return
+        }
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                strictModeManager.startScheduleCooldown(scheduleId)
+                CoroutineScope(Dispatchers.Main).launch {
+                    result.success(true)
+                }
+            } catch (e: Exception) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    result.error("COOLDOWN_ERROR", e.message, null)
+                }
+            }
+        }
+    }
+    
+    private fun confirmScheduleCooldownUnlock(call: MethodCall, result: MethodChannel.Result) {
+        val scheduleId = (call.argument<Number>("scheduleId"))?.toLong() ?: run {
+            result.error("INVALID_ARGS", "Schedule ID is required", null)
+            return
+        }
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val unlockResult = strictModeManager.confirmScheduleCooldownUnlock(scheduleId)
+                
+                val map = mapOf(
+                    "success" to unlockResult.success,
+                    "reason" to unlockResult.reason
+                )
+                
+                CoroutineScope(Dispatchers.Main).launch {
+                    result.success(map)
+                }
+            } catch (e: Exception) {
+                CoroutineScope(Dispatchers.Main).launch {
+                    result.error("CONFIRM_ERROR", e.message, null)
+                }
+            }
         }
     }
 }

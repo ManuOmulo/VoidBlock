@@ -83,7 +83,7 @@ class StrictModeManager(private val context: Context) {
             when (level) {
                 StrictModeLevel.NONE -> UnlockAttemptResult(true, "No strict mode")
                 StrictModeLevel.EASY -> attemptSchedulePinUnlock(schedule, inputPin)
-                StrictModeLevel.MEDIUM -> UnlockAttemptResult(false, "Cooldown not yet implemented for schedules")
+                StrictModeLevel.MEDIUM -> attemptScheduleCooldown(schedule)
                 StrictModeLevel.HARD -> UnlockAttemptResult(false, "Hard mode: Cannot unlock until schedule ends")
             }
         }
@@ -353,6 +353,107 @@ private suspend fun ensurePreferencesExist() {
                 notificationManager.cancel(9001)
                 
                 UnlockAttemptResult(true, "Cooldown confirmed. You may now stop the session")
+            } else {
+                UnlockAttemptResult(false, "Cooldown not yet complete")
+            }
+        }
+    }
+    
+    /**
+     * Attempt cooldown unlock for schedule with Medium mode
+     */
+    private suspend fun attemptScheduleCooldown(
+        schedule: ScheduleEntity
+    ): UnlockAttemptResult {
+        val cooldownMinutes = schedule.strictModeCooldownMinutes ?: 10
+        
+        // Check if cooldown already started
+        if (schedule.cooldownStartedAt != null) {
+            val now = System.currentTimeMillis()
+            val cooldownStartTime = schedule.cooldownStartedAt
+            val expectedCooldownEnd = cooldownStartTime + (cooldownMinutes * 60 * 1000)
+            
+            // TIME MANIPULATION DETECTION
+            if (now < cooldownStartTime) {
+                android.util.Log.w("StrictMode", "Time manipulation detected for schedule: time went backwards")
+                // Reset cooldown
+                val updated = schedule.copy(
+                    cooldownStartedAt = null,
+                    cooldownConfirmed = false
+                )
+                database.scheduleDao().updateSchedule(updated)
+                return UnlockAttemptResult(
+                    false,
+                    "Time manipulation detected. Cooldown reset. Please try again."
+                )
+            }
+            
+            if (now >= expectedCooldownEnd) {
+                // Cooldown complete
+                if (schedule.cooldownConfirmed) {
+                    return UnlockAttemptResult(true, "Cooldown complete and confirmed")
+                }
+                return UnlockAttemptResult(false, "Cooldown complete. Please confirm to unlock")
+            } else {
+                // Still in cooldown
+                val remainingSeconds = (expectedCooldownEnd - now) / 1000
+                return UnlockAttemptResult(
+                    false,
+                    "Cooldown in progress. $remainingSeconds seconds remaining"
+                )
+            }
+        }
+        
+        // Start cooldown
+        return UnlockAttemptResult(false, "Cooldown started. Wait $cooldownMinutes minutes")
+    }
+    
+    /**
+     * Start cooldown period for a schedule with Medium mode
+     */
+    suspend fun startScheduleCooldown(scheduleId: Long) {
+        android.util.Log.d("StrictMode", "startScheduleCooldown called for scheduleId=$scheduleId")
+        withContext(Dispatchers.IO) {
+            val schedule = database.scheduleDao().getScheduleById(scheduleId)
+            android.util.Log.d("StrictMode", "Schedule found: ${schedule != null}, isStrictMode=${schedule?.isStrictMode}, level=${schedule?.strictModeLevel}")
+            if (schedule != null) {
+                // Update schedule to start cooldown
+                val updated = schedule.copy(
+                    cooldownStartedAt = System.currentTimeMillis(),
+                    cooldownConfirmed = false
+                )
+                database.scheduleDao().updateSchedule(updated)
+                
+                // Show notification
+                showCooldownNotification(schedule.strictModeCooldownMinutes ?: 10)
+            }
+        }
+    }
+    
+    /**
+     * Confirm unlock after cooldown completes for a schedule
+     */
+    suspend fun confirmScheduleCooldownUnlock(scheduleId: Long): UnlockAttemptResult {
+        return withContext(Dispatchers.IO) {
+            val schedule = database.scheduleDao().getScheduleById(scheduleId)
+            if (schedule == null) {
+                return@withContext UnlockAttemptResult(false, "Schedule not found")
+            }
+            
+            val cooldownMinutes = schedule.strictModeCooldownMinutes ?: 10
+            val cooldownEnd = (schedule.cooldownStartedAt ?: 0) + (cooldownMinutes * 60 * 1000)
+            
+            if (System.currentTimeMillis() >= cooldownEnd) {
+                // Mark as confirmed
+                val updated = schedule.copy(cooldownConfirmed = true)
+                database.scheduleDao().updateSchedule(updated)
+                
+                // Cancel notification
+                val notificationManager = context.getSystemService(android.content.Context.NOTIFICATION_SERVICE) 
+                    as android.app.NotificationManager
+                notificationManager.cancel(9001)
+                
+                UnlockAttemptResult(true, "Cooldown confirmed. You may now pause the schedule")
             } else {
                 UnlockAttemptResult(false, "Cooldown not yet complete")
             }

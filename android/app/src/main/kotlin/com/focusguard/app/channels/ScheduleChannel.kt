@@ -420,6 +420,9 @@ class ScheduleChannel(private val context: Context) : MethodChannel.MethodCallHa
             isActive = data["isActive"] as? Boolean ?: true,
             isPaused = data["isPaused"] as? Boolean ?: false,
             isStrictMode = data["isStrictMode"] as? Boolean ?: false,
+            strictModeLevel = data["strictModeLevel"] as? String ?: "NONE",
+            strictModePin = data["strictModePin"] as? String,
+            strictModeCooldownMinutes = data["strictModeCooldownMinutes"] as? Int,
             motivationalMessage = data["motivationalMessage"] as? String,
             notificationsEnabled = data["notificationsEnabled"] as? Boolean ?: true,
             createdAt = (data["createdAt"] as? Long) ?: System.currentTimeMillis()
@@ -443,6 +446,9 @@ class ScheduleChannel(private val context: Context) : MethodChannel.MethodCallHa
             "isActive" to schedule.isActive,
             "isPaused" to schedule.isPaused,
             "isStrictMode" to schedule.isStrictMode,
+            "strictModeLevel" to schedule.strictModeLevel,
+            "strictModePin" to schedule.strictModePin,
+            "strictModeCooldownMinutes" to schedule.strictModeCooldownMinutes,
             "motivationalMessage" to schedule.motivationalMessage,
             "notificationsEnabled" to schedule.notificationsEnabled,
             "blockedApps" to blockedApps

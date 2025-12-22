@@ -95,6 +95,36 @@ class StrictModeService {
     }
   }
 
+  /// Start cooldown period for a schedule
+  Future<bool> startScheduleCooldown(int scheduleId) async {
+    try {
+      await _channel
+          .invokeMethod('startScheduleCooldown', {'scheduleId': scheduleId});
+      return true;
+    } catch (e) {
+      print('Error starting schedule cooldown: $e');
+      return false;
+    }
+  }
+
+  /// Confirm cooldown unlock for a schedule
+  Future<Map<String, dynamic>> confirmScheduleCooldownUnlock(
+      int scheduleId) async {
+    try {
+      final result =
+          await _channel.invokeMethod('confirmScheduleCooldownUnlock', {
+        'scheduleId': scheduleId,
+      });
+      return Map<String, dynamic>.from(result);
+    } catch (e) {
+      print('Error confirming schedule cooldown: $e');
+      return {
+        'success': false,
+        'reason': 'Failed to confirm: $e',
+      };
+    }
+  }
+
   /// Encrypt a PIN (for storage)
   Future<String?> encryptPin(String pin) async {
     try {

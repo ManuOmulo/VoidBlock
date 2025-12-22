@@ -66,6 +66,13 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
         (_activeSession!['strictModeLevel'] as String?) ?? 'NONE';
     final sessionId = (_activeSession!['id'] as int?) ?? 0;
 
+    // Debug: Print strict mode info
+    print(
+        'DEBUG ActiveSessionWidget: isStrictMode=$isStrictMode, strictModeLevel=$strictModeLevel, '
+        'cooldownMinutes=${_activeSession!['strictModeCooldownMinutes']}, '
+        'cooldownStartedAt=${_activeSession!['cooldownStartedAt']}, '
+        'type=${_activeSession!['type']}');
+
     return Container(
       margin: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -197,15 +204,22 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
     final sessionId = (_activeSession!['id'] as int?) ?? 0;
     final isSchedule = _activeSession!['type'] == 'schedule';
 
+    print(
+        'DEBUG _pauseSession: strictModeLevel=$strictModeLevel, sessionId=$sessionId, isSchedule=$isSchedule');
+
     if (strictModeLevel != 'NONE') {
       try {
+        print('DEBUG: Starting strict mode unlock...');
         await _handleStrictModeUnlock(strictModeLevel, sessionId, isSchedule);
+        print('DEBUG: Strict mode unlock succeeded');
       } catch (e) {
         // Unlock failed or cancelled
+        print('DEBUG: Strict mode unlock failed/cancelled: $e');
         return;
       }
     }
 
+    print('DEBUG: Calling pauseBlocking()...');
     final success = await _blockingService.pauseBlocking();
     if (success) {
       _loadActiveSession();
@@ -361,14 +375,20 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
       if (cooldownStartedAt != null && cooldownStartedAt > 0) {
         startTime = DateTime.fromMillisecondsSinceEpoch(cooldownStartedAt);
       } else {
-        // Start new cooldown (only works for sessions, not schedules)
-        if (!isSchedule) {
-          await strictModeService.startCooldown(id);
-          startTime = DateTime.now();
-          await _loadActiveSession(); // Refresh to get updated cooldown time
+        // Start new cooldown
+        print(
+            'DEBUG MEDIUM: Starting new cooldown. isSchedule=$isSchedule, id=$id');
+        if (isSchedule) {
+          print('DEBUG: Calling startScheduleCooldown($id)');
+          await strictModeService.startScheduleCooldown(id);
         } else {
-          startTime = DateTime.now();
+          print('DEBUG: Calling startCooldown($id)');
+          await strictModeService.startCooldown(id);
         }
+        startTime = DateTime.now();
+        print('DEBUG: Loading active session after starting cooldown...');
+        await _loadActiveSession(); // Refresh to get updated cooldown time
+        print('DEBUG: Active session reloaded');
       }
 
       final confirmed = await Navigator.push<bool>(
@@ -383,14 +403,19 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
       );
 
       if (confirmed == true) {
-        // For schedules, we can't confirm cooldown in the same way
-        if (!isSchedule) {
+        // Confirm cooldown completion based on type
+        if (isSchedule) {
+          final result =
+              await strictModeService.confirmScheduleCooldownUnlock(id);
+          if (result['success'] != true) {
+            throw Exception('Cooldown not complete');
+          }
+        } else {
           final result = await strictModeService.confirmCooldownUnlock(id);
           if (result['success'] != true) {
             throw Exception('Cooldown not complete');
           }
         }
-        // For schedules, just proceed if cooldown time has elapsed
       } else {
         throw Exception('Cooldown cancelled');
       }

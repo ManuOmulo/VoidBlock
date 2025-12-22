@@ -21,7 +21,7 @@ import com.focusguard.app.data.database.entities.*
         SessionBlockedAppEntity::class,
         StrictModePreferencesEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -52,7 +52,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 // Production: No fallback to destructive migration
                 // If migration fails, app will crash - this forces us to write correct migrations
                 .build()
@@ -127,6 +127,14 @@ abstract class AppDatabase : RoomDatabase() {
                 
                 // Insert default preferences (use INSERT OR IGNORE to avoid errors on re-run)
                 database.execSQL("INSERT OR IGNORE INTO strict_mode_preferences (id) VALUES (1)")
+            }
+        }
+        
+        private val MIGRATION_4_5 = object : androidx.room.migration.Migration(4, 5) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Add cooldown tracking columns to schedules table
+                database.execSQL("ALTER TABLE schedules ADD COLUMN cooldown_started_at INTEGER")
+                database.execSQL("ALTER TABLE schedules ADD COLUMN cooldown_confirmed INTEGER NOT NULL DEFAULT 0")
             }
         }
     }
