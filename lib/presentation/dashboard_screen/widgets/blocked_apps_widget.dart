@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/app_export.dart';
-import '../../../widgets/custom_icon_widget.dart';
-import '../../../widgets/custom_image_widget.dart';
 import '../../../services/blocking_service.dart';
 import '../../../services/analytics_service.dart';
 
@@ -288,141 +286,154 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
     final hours = app["remainingMinutes"] ~/ 60;
     final minutes = app["remainingMinutes"] % 60;
 
-    return Card(
-      elevation: 2,
-      child: InkWell(
-        onTap: () {
-          HapticFeedback.lightImpact();
-          if (app["isStrictMode"]) {
-            _showEmergencyUnlock(index);
-          }
-        },
-        onLongPress: () {
-          if (!app["isStrictMode"]) {
-            _endBlockingEarly(index);
-          } else {
-            _showEmergencyUnlock(index);
-          }
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: app["iconBase64"] != null
-                          ? Image.memory(
-                              base64Decode(app["iconBase64"]),
-                              width: 56,
-                              height: 56,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => CustomIconWidget(
-                                iconName: 'apps',
-                                size: 24,
-                                color: theme.colorScheme.primary,
+    return Container(
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            if (app["isStrictMode"]) {
+              _showEmergencyUnlock(index);
+            }
+          },
+          onLongPress: () {
+            if (!app["isStrictMode"]) {
+              _endBlockingEarly(index);
+            } else {
+              _showEmergencyUnlock(index);
+            }
+          },
+          borderRadius: BorderRadius.circular(20),
+          child: Padding(
+            padding: EdgeInsets.all(12),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: app["iconBase64"] != null
+                            ? Image.memory(
+                                base64Decode(app["iconBase64"]),
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => CustomIconWidget(
+                                  iconName: 'apps',
+                                  size: 24,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              )
+                            : CustomImageWidget(
+                                imageUrl:
+                                    app["icon"], // Fallback if icon URL exists
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                semanticLabel: "${app["name"]} icon",
                               ),
-                            )
-                          : CustomImageWidget(
-                              imageUrl:
-                                  app["icon"], // Fallback if icon URL exists
-                              width: 56,
-                              height: 56,
-                              fit: BoxFit.cover,
-                              semanticLabel: "${app["name"]} icon",
-                            ),
+                      ),
                     ),
+                    if (app["isStrictMode"])
+                      Positioned(
+                        top: -4,
+                        right: -4,
+                        child: Container(
+                          padding: EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.error,
+                            shape: BoxShape.circle,
+                          ),
+                          child: CustomIconWidget(
+                            iconName: 'lock',
+                            size: 12,
+                            color: theme.colorScheme.onError,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Text(
+                  app["name"],
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
                   ),
-                  if (app["isStrictMode"])
-                    Positioned(
-                      top: -4,
-                      right: -4,
-                      child: Container(
-                        padding: EdgeInsets.all(4),
-                        decoration: BoxDecoration(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 8),
+                if (!app["isStrictMode"])
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      onPressed: () => _endBlockingEarly(index),
+                      style: OutlinedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        side: BorderSide(
                           color: theme.colorScheme.error,
-                          shape: BoxShape.circle,
+                          width: 1,
                         ),
-                        child: CustomIconWidget(
-                          iconName: 'lock',
-                          size: 12,
-                          color: theme.colorScheme.onError,
+                      ),
+                      child: Text(
+                        'End Early',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.error,
                         ),
                       ),
                     ),
-                ],
-              ),
-              SizedBox(height: 8),
-              Text(
-                app["name"],
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 4),
-              Text(
-                hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(height: 8),
-              if (!app["isStrictMode"])
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => _endBlockingEarly(index),
-                    style: OutlinedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      side: BorderSide(
-                        color: theme.colorScheme.error,
-                        width: 1,
-                      ),
+                  )
+                else
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'End Early',
+                      'Locked',
                       style: TextStyle(
                         fontSize: 12,
                         color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w600,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
-                )
-              else
-                Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Locked',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.colorScheme.error,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -204,7 +204,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 color: Theme.of(context)
                     .colorScheme
                     .primaryContainer
-                    .withOpacity(0.3),
+                    .withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -284,10 +284,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                     children: [
                       ActiveSessionWidget(key: _activeSessionKey),
                       DailyStatsWidget(key: _statsKey),
+                      SizedBox(height: 8),
                       InsightsWidget(key: _insightsKey),
                       ActiveSchedulesWidget(key: _schedulesKey),
                       BlockedAppsWidget(key: _blockedAppsKey),
-                      SizedBox(height: 80),
+                      SizedBox(height: 100),
                     ],
                   ),
                 ),

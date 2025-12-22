@@ -95,15 +95,29 @@ class InsightsWidgetState extends State<InsightsWidget> {
         icon = Icons.info_outline;
     }
 
-    return Card(
-      margin: EdgeInsets.only(bottom: 8),
-      color: cardColor,
+    return Container(
+      margin: EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: cardColor.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: cardColor.withValues(alpha: 0.5),
+        ),
+      ),
       child: Padding(
-        padding: EdgeInsets.all(12),
+        padding: EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(icon, color: theme.colorScheme.onSecondaryContainer),
-            SizedBox(width: 12),
+            Container(
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon,
+                  color: theme.colorScheme.onSecondaryContainer, size: 20),
+            ),
+            SizedBox(width: 16),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,23 +125,33 @@ class InsightsWidgetState extends State<InsightsWidget> {
                   Text(
                     insight['title'] as String? ?? '',
                     style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                   SizedBox(height: 4),
                   Text(
                     insight['message'] as String? ?? '',
-                    style: theme.textTheme.bodySmall,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
             ),
-            Text(
-              insight['value'] as String? ?? '',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+            if (insight['value'] != null)
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  insight['value'] as String? ?? '',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
           ],
         ),
       ),

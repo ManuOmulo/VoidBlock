@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 
 import '../../../core/app_export.dart';
 import '../../../services/analytics_service.dart';
-import '../../../widgets/custom_icon_widget.dart';
 
 /// Daily statistics widget showing productivity metrics
 class DailyStatsWidget extends StatefulWidget {
@@ -85,7 +84,7 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
     final theme = Theme.of(context);
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -95,7 +94,7 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
               Text(
                 'Today\'s Progress',
                 style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               TextButton(
@@ -103,54 +102,75 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
                   HapticFeedback.lightImpact();
                   Navigator.pushNamed(context, '/analytics-screen');
                 },
-                child: Text('View Details'),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.primary,
+                ),
+                child: Row(
+                  children: [
+                    Text('View Details'),
+                    SizedBox(width: 4),
+                    Icon(Icons.arrow_forward_ios_rounded, size: 14),
+                  ],
+                ),
               ),
             ],
           ),
           SizedBox(height: 12),
           _isLoading
               ? _buildLoadingState(theme)
-              : Card(
-                  elevation: 2,
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildStatItem(
-                                context,
-                                theme,
-                                icon: 'timer',
-                                label: 'Time Saved',
-                                value: _timeSaved,
-                                color: theme.colorScheme.primary,
-                              ),
+              : Container(
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.shadowColor.withValues(alpha: 0.05),
+                        blurRadius: 20,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  padding: EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatItem(
+                              context,
+                              theme,
+                              icon: 'timer',
+                              label: 'Time Saved',
+                              value: _timeSaved,
+                              color: theme.colorScheme.primary,
                             ),
-                            Container(
-                              width: 1,
-                              height: 60,
-                              color: theme.dividerColor,
+                          ),
+                          Container(
+                            width: 1,
+                            height: 60,
+                            color: theme.dividerColor.withValues(alpha: 0.5),
+                          ),
+                          Expanded(
+                            child: _buildStatItem(
+                              context,
+                              theme,
+                              icon: 'block',
+                              label: 'Apps Blocked',
+                              value: '$_appsBlocked',
+                              color: theme.colorScheme.secondary,
                             ),
-                            Expanded(
-                              child: _buildStatItem(
-                                context,
-                                theme,
-                                icon: 'block',
-                                label: 'Apps Blocked',
-                                value: '$_appsBlocked',
-                                color: theme.colorScheme.secondary,
-                              ),
-                            ),
-                          ],
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Divider(
+                          height: 1,
+                          color: theme.dividerColor.withValues(alpha: 0.5),
                         ),
-                        SizedBox(height: 16),
-                        Divider(height: 1),
-                        SizedBox(height: 16),
-                        _buildProductivityScore(context, theme),
-                      ],
-                    ),
+                      ),
+                      _buildProductivityScore(context, theme),
+                    ],
                   ),
                 ),
         ],
@@ -159,13 +179,21 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
   }
 
   Widget _buildLoadingState(ThemeData theme) {
-    return Card(
-      elevation: 2,
-      child: Padding(
-        padding: EdgeInsets.all(48),
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: theme.shadowColor.withValues(alpha: 0.05),
+            blurRadius: 20,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Center(
+        child: CircularProgressIndicator(),
       ),
     );
   }
@@ -181,26 +209,27 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
     return Column(
       children: [
         Container(
-          padding: EdgeInsets.all(12),
+          padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: CustomIconWidget(iconName: icon, size: 24, color: color),
+          child: CustomIconWidget(iconName: icon, size: 28, color: color),
         ),
-        SizedBox(height: 8),
+        SizedBox(height: 12),
         Text(
           value,
           style: theme.textTheme.headlineSmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: color,
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         SizedBox(height: 4),
         Text(
           label,
-          style: theme.textTheme.bodySmall?.copyWith(
+          style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w500,
           ),
           textAlign: TextAlign.center,
         ),
@@ -218,78 +247,53 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Productivity Score',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Productivity Score',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  _getScoreMessage(score),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: _getScoreColor(score, theme).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(50),
               ),
               child: Text(
                 '$score%',
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                   color: _getScoreColor(score, theme),
                 ),
               ),
             ),
           ],
         ),
-        SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _getScoreColor(score, theme),
-                    ),
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    _getScoreMessage(score),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+        SizedBox(height: 16),
+        Container(
+          height: 12,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                _getScoreColor(score, theme),
               ),
             ),
-            SizedBox(width: 16),
-            SizedBox(
-              width: 64,
-              height: 64,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  CircularProgressIndicator(
-                    value: progress,
-                    strokeWidth: 6,
-                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      _getScoreColor(score, theme),
-                    ),
-                  ),
-                  CustomIconWidget(
-                    iconName: _getScoreIcon(score),
-                    size: 28,
-                    color: _getScoreColor(score, theme),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
       ],
     );
@@ -300,13 +304,6 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
     if (score >= 60) return theme.colorScheme.primary;
     if (score >= 40) return AppTheme.warningLight;
     return theme.colorScheme.error;
-  }
-
-  String _getScoreIcon(int score) {
-    if (score >= 80) return 'emoji_events';
-    if (score >= 60) return 'thumb_up';
-    if (score >= 40) return 'trending_up';
-    return 'trending_down';
   }
 
   String _getScoreMessage(int score) {

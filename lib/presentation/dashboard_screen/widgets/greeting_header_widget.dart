@@ -51,11 +51,8 @@ class _GreetingHeaderWidgetState extends State<GreetingHeaderWidget> {
     final dateFormat = DateFormat('EEEE, MMMM d');
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(bottom: BorderSide(color: theme.dividerColor, width: 1)),
-      ),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20),
+      color: theme.colorScheme.surface,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -65,43 +62,67 @@ class _GreetingHeaderWidgetState extends State<GreetingHeaderWidget> {
               children: [
                 Text(
                   _getGreeting(),
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                    color: theme.colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: 4),
-                Text(
-                  dateFormat.format(_now),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                SizedBox(height: 2),
-                Text(
-                  timeFormat.format(_now),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Text(
+                      dateFormat.format(_now),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Container(
+                      margin: EdgeInsets.symmetric(horizontal: 8),
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Text(
+                      timeFormat.format(_now),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
-          IconButton(
-            icon: CustomIconWidget(
-              iconName: 'settings',
-              color: theme.colorScheme.onSurface,
-              size: 24,
+          Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(16),
             ),
-            onPressed: () {
-              Navigator.pushNamed(context, '/settings-screen');
-            },
-            tooltip: 'Settings',
+            child: IconButton(
+              icon: CustomIconWidget(
+                iconName: 'settings',
+                color: theme.colorScheme.onSurface,
+                size: 24,
+              ),
+              onPressed: () {
+                Navigator.pushNamed(context, '/settings-screen');
+              },
+              tooltip: 'Settings',
+              style: IconButton.styleFrom(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
           ),
         ],
       ),

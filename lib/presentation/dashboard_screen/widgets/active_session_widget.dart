@@ -64,7 +64,6 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
     final isStrictMode = (_activeSession!['isStrictMode'] as bool?) ?? false;
     final strictModeLevel =
         (_activeSession!['strictModeLevel'] as String?) ?? 'NONE';
-    final sessionId = (_activeSession!['id'] as int?) ?? 0;
 
     // Debug: Print strict mode info
     print(
@@ -77,120 +76,224 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
       margin: EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
           colors: [
             theme.colorScheme.primary,
-            theme.colorScheme.primary.withOpacity(0.8),
+            theme.colorScheme.tertiary,
           ],
         ),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withValues(alpha: 0.3),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            HapticFeedback.lightImpact();
-            // Could navigate to session details
-          },
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      isPaused ? Icons.pause_circle : Icons.block,
-                      color: Colors.white,
-                      size: 32,
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isPaused
-                                ? 'Blocking Paused'
-                                : (_activeSession!['type'] == 'schedule'
-                                    ? 'Scheduled Blocking'
-                                    : 'Active Blocking'),
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if (isStrictMode && strictModeLevel != 'NONE') ...[
-                            SizedBox(height: 4),
-                            _buildStrictModeBadge(strictModeLevel, theme),
-                          ],
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${remaining}min',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'Blocking ${apps.length} apps',
-                  style: TextStyle(color: Colors.white70),
-                ),
-                SizedBox(height: 12),
-                Row(
-                  children: [
-                    // Show pause button for non-strict and Easy/Medium strict modes
-                    // Hard mode has no pause functionality
-                    if (!isPaused && strictModeLevel != 'HARD')
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _pauseSession(),
-                          icon: Icon(Icons.pause, size: 18),
-                          label: Text('Pause'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    if (isPaused)
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _resumeSession(),
-                          icon: Icon(Icons.play_arrow, size: 18),
-                          label: Text('Resume'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
-                    if (!isPaused && strictModeLevel != 'HARD')
-                      SizedBox(width: 8),
-                    if (_activeSession!['type'] != 'schedule')
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _stopSession(),
-                          icon: Icon(Icons.stop, size: 18),
-                          label: Text('End'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: BorderSide(
-                                color: Colors.white.withOpacity(0.5)),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
+      child: Stack(
+        children: [
+          // Background decorative circle
+          Positioned(
+            right: -20,
+            top: -20,
+            child: Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.1),
+              ),
             ),
           ),
-        ),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () {
+                HapticFeedback.lightImpact();
+              },
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isPaused
+                                ? Icons.pause_rounded
+                                : Icons.timer_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                        ),
+                        SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isPaused
+                                    ? 'Session Paused'
+                                    : (_activeSession!['type'] == 'schedule'
+                                        ? 'Scheduled Focus'
+                                        : 'Focus Session'),
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.9),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: isPaused
+                                          ? Colors.orangeAccent
+                                          : Colors.greenAccent,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    isPaused ? 'On Break' : 'Active',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.8),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${remaining}m',
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: -1,
+                              ),
+                            ),
+                            Text(
+                              'remaining',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 24),
+                    if (apps.isNotEmpty)
+                      Container(
+                        margin: EdgeInsets.only(bottom: 24),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.apps_rounded,
+                                color: Colors.white70, size: 16),
+                            SizedBox(width: 8),
+                            Text(
+                              '${apps.length} apps blocked',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (isStrictMode && strictModeLevel != 'NONE')
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: _buildStrictModeBadge(strictModeLevel, theme),
+                      ),
+                    Row(
+                      children: [
+                        if (!isPaused && strictModeLevel != 'HARD')
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _pauseSession(),
+                              icon: Icon(Icons.pause_rounded, size: 20),
+                              label: Text('Pause'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: theme.colorScheme.primary,
+                                elevation: 0,
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (isPaused)
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => _resumeSession(),
+                              icon: Icon(Icons.play_arrow_rounded, size: 20),
+                              label: Text('Resume'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: theme.colorScheme.primary,
+                                elevation: 0,
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (!isPaused && strictModeLevel != 'HARD')
+                          SizedBox(width: 12),
+                        if (_activeSession!['type'] != 'schedule')
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () => _stopSession(),
+                              icon: Icon(Icons.stop_rounded, size: 20),
+                              label: Text('End'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                side: BorderSide(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    width: 1.5),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -304,7 +407,7 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
