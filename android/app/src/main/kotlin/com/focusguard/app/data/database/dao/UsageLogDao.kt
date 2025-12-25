@@ -27,6 +27,9 @@ interface UsageLogDao {
     
     @Query("SELECT COUNT(*) FROM usage_logs WHERE wasBlocked = 1 AND startTime >= :startTime")
     suspend fun getBlockedAttemptsCount(startTime: Long): Int
+
+    @Query("SELECT COUNT(*) FROM usage_logs WHERE wasBlocked = 1 AND startTime >= :startTime AND startTime <= :endTime")
+    suspend fun getBlockedAttemptsCountForPeriod(startTime: Long, endTime: Long): Int
     
     @Query("SELECT COUNT(DISTINCT packageName) FROM usage_logs WHERE wasBlocked = 1 AND startTime >= :startTime")
     suspend fun getUniqueBlockedAppsCount(startTime: Long): Int

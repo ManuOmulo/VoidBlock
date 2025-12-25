@@ -1,6 +1,8 @@
 package com.focusguard.app.channels
 
 import android.content.Context
+import java.text.SimpleDateFormat
+import java.util.*
 import com.focusguard.app.data.database.AppDatabase
 import com.focusguard.app.utils.InstalledAppsManager
 import com.focusguard.app.utils.ProductivityCalculator
@@ -11,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.app.usage.UsageStatsManager
 import java.io.File
 
 /**
@@ -23,6 +26,7 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
     private val productivityCalculator = ProductivityCalculator()
     private val insightsGenerator = InsightsGenerator()
     private val scope = CoroutineScope(Dispatchers.Main)
+    private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     
     companion object {
         const val CHANNEL_NAME = "com.focusguard.app/analytics"
@@ -108,14 +112,38 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 val startTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
                 
                 val stats = withContext(Dispatchers.IO) {
-                    val blockedTime = database.usageLogDao().getTotalBlockedTime(startTime) ?: 0L
+                    val rawBlockedTime = database.usageLogDao().getTotalBlockedTime(startTime) ?: 0L
                     val blockedCount = database.usageLogDao().getBlockedAttemptsCount(startTime)
                     val uniqueApps = database.usageLogDao().getUniqueBlockedAppsCount(startTime)
                     
+                    // Improved Time Saved Calculation (Personalized)
+                    val thirtyDaysAgo = System.currentTimeMillis() - (30 * 24 * 60 * 60 * 1000L)
+                    val historyBreakdown = database.usageLogDao().getAppUsageBreakdown(thirtyDaysAgo)
+                    
+                    var totalActiveTime = 0L
+                    var totalActiveSessions = 0L
+                    for (row in historyBreakdown) {
+                        totalActiveTime += row.totalTime
+                        totalActiveSessions += (row.usageCount - row.blockedCount).coerceAtLeast(0)
+                    }
+                    
+                    val avgSessionDurationMs = if (totalActiveSessions > 0) {
+                        (totalActiveTime / totalActiveSessions).coerceAtMost(15 * 60 * 1000L)
+                    } else {
+                        5 * 60 * 1000L // 5 min fallback
+                    }
+                    
+                    val estimatedTimeSaved = rawBlockedTime + (blockedCount * avgSessionDurationMs)
+                    
+                    // Real System Usage Total
+                    val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
+                    val totalSystemUsageMs = systemStats.values.sumOf { it.totalTimeInForeground }
+                    
                     mapOf(
-                        "blockedTime" to blockedTime,
+                        "blockedTime" to estimatedTimeSaved,
                         "blockedCount" to blockedCount,
                         "uniqueBlockedApps" to uniqueApps,
+                        "totalUsageTime" to totalSystemUsageMs,
                         "days" to days
                     )
                 }
@@ -138,7 +166,13 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 
                 val score = withContext(Dispatchers.IO) {
                     val logs = database.usageLogDao().getLogsForPastDays(startTime)
-                    productivityCalculator.calculateProductivityScore(logs, days)
+                    val blockedCount = logs.filter { it.wasBlocked }.size
+                    val totalBlockedTime = logs.filter { it.wasBlocked }.sumOf { it.durationMillis }
+                    
+                    val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
+                    val totalUsageTime = systemStats.values.sumOf { it.totalTimeInForeground }
+                    
+                    productivityCalculator.calculateProductivityScore(blockedCount, totalBlockedTime, totalUsageTime, days)
                 }
                 
                 result.success(score)
@@ -161,11 +195,21 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     database.usageLogDao().getMostUsedApps(startTime, limit)
                 }
                 
-                val appsList = apps.map { app ->
-                    mapOf(
-                        "packageName" to app.packageName,
-                        "totalTime" to app.totalTime
-                    )
+                val appsList = withContext(Dispatchers.IO) {
+                    val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
+                    
+                    systemStats.values
+                        .filter { it.totalTimeInForeground > 0 }
+                        .sortedByDescending { it.totalTimeInForeground }
+                        .take(limit)
+                        .map { stat ->
+                            val appInfo = appsManager.getAppInfo(stat.packageName)
+                            mapOf(
+                                "packageName" to stat.packageName,
+                                "appName" to (appInfo?.appName ?: stat.packageName),
+                                "usageMinutes" to (stat.totalTimeInForeground / 60000).toInt()
+                            )
+                        }
                 }
                 
                 result.success(appsList)
@@ -208,7 +252,13 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     val dailySummary = database.usageLogDao().getDailyUsageSummary(startTime)
                     val appBreakdown = database.usageLogDao().getAppUsageBreakdown(startTime)
                     val logs = database.usageLogDao().getLogsForPastDays(startTime)
-                    val score = productivityCalculator.calculateProductivityScore(logs, days)
+                    
+                    val blockedCount = logs.filter { it.wasBlocked }.size
+                    val totalBlockedTime = logs.filter { it.wasBlocked }.sumOf { it.durationMillis }
+                    val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
+                    val totalUsageTime = systemStats.values.sumOf { it.totalTimeInForeground }
+                    
+                    val score = productivityCalculator.calculateProductivityScore(blockedCount, totalBlockedTime, totalUsageTime, days)
                     
                     insightsGenerator.generateInsights(dailySummary, appBreakdown, score)
                 }
@@ -243,13 +293,40 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     database.usageLogDao().getDailyUsageSummary(startTime)
                 }
                 
-                val statsList = dailyStats.map { stat ->
-                    mapOf(
-                        "day" to stat.daysSinceEpoch,
-                        "totalTime" to stat.totalTime,
-                        "sessionCount" to stat.sessionCount,
-                        "blockedCount" to stat.blockedCount
-                    )
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val statsList = mutableListOf<Map<String, Any>>()
+                
+                // Aggregate usage per day using UsageStatsManager
+                for (i in 0 until days) {
+                    val cal = Calendar.getInstance()
+                    cal.add(Calendar.DAY_OF_YEAR, -i)
+                    cal.set(Calendar.HOUR_OF_DAY, 0)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    val dayStart = cal.timeInMillis
+                    
+                    cal.set(Calendar.HOUR_OF_DAY, 23)
+                    cal.set(Calendar.MINUTE, 59)
+                    cal.set(Calendar.SECOND, 59)
+                    val dayEnd = cal.timeInMillis
+                    
+                    val dayStats = withContext(Dispatchers.IO) {
+                        usageStatsManager.queryAndAggregateUsageStats(dayStart, dayEnd)
+                    }
+                    
+                    val totalTimeMs = dayStats.values.sumOf { it.totalTimeInForeground }
+                    
+                    // Also get blocked stats from DB for this day
+                    val blockedCount = withContext(Dispatchers.IO) {
+                        database.usageLogDao().getBlockedAttemptsCountForPeriod(dayStart, dayEnd)
+                    }
+                    
+                    statsList.add(mapOf(
+                        "date" to dateFormat.format(Date(dayStart)),
+                        "totalTime" to (totalTimeMs / 60000).toInt(),
+                        "blockedCount" to blockedCount
+                    ))
                 }
                 
                 result.success(statsList)

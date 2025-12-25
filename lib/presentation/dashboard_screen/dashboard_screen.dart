@@ -13,6 +13,7 @@ import './widgets/blocked_apps_widget.dart';
 import './widgets/daily_stats_widget.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/insights_widget.dart';
+import './widgets/active_limits_widget.dart';
 
 import '../../services/permission_service.dart';
 
@@ -35,6 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   final GlobalKey<InsightsWidgetState> _insightsKey = GlobalKey();
   final GlobalKey<ActiveSchedulesWidgetState> _schedulesKey = GlobalKey();
   final GlobalKey<BlockedAppsWidgetState> _blockedAppsKey = GlobalKey();
+  final GlobalKey<ActiveLimitsWidgetState> _limitsKey = GlobalKey();
 
   Timer? _autoRefreshTimer;
   bool _isScreenVisible = true;
@@ -136,6 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       _insightsKey.currentState?.refresh() ?? Future.value(),
       _schedulesKey.currentState?.refresh() ?? Future.value(),
       _blockedAppsKey.currentState?.refresh() ?? Future.value(),
+      _limitsKey.currentState?.refresh() ?? Future.value(),
     ]);
   }
 
@@ -158,6 +161,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       _insightsKey.currentState?.refresh() ?? Future.value(),
       _schedulesKey.currentState?.refresh() ?? Future.value(),
       _blockedAppsKey.currentState?.refresh() ?? Future.value(),
+      _limitsKey.currentState?.refresh() ?? Future.value(),
     ]);
 
     if (mounted) {
@@ -286,6 +290,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       DailyStatsWidget(key: _statsKey),
                       SizedBox(height: 8),
                       InsightsWidget(key: _insightsKey),
+                      ActiveLimitsWidget(key: _limitsKey),
                       ActiveSchedulesWidget(key: _schedulesKey),
                       BlockedAppsWidget(key: _blockedAppsKey),
                       SizedBox(height: 100),

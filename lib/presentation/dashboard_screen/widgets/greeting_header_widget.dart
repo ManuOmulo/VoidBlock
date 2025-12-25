@@ -51,49 +51,67 @@ class _GreetingHeaderWidgetState extends State<GreetingHeaderWidget> {
     final dateFormat = DateFormat('EEEE, MMMM d');
 
     return Container(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, 20),
-      color: theme.colorScheme.surface,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+            width: 0.5,
+          ),
+        ),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   _getGreeting(),
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
                     color: theme.colorScheme.onSurface,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Row(
                   children: [
-                    Text(
-                      dateFormat.format(_now),
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+                    Flexible(
+                      child: Text(
+                        dateFormat.format(_now),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withOpacity(0.8),
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     Container(
-                      margin: EdgeInsets.symmetric(horizontal: 8),
-                      width: 4,
-                      height: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 6),
+                      width: 3,
+                      height: 3,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.onSurfaceVariant,
+                        color:
+                            theme.colorScheme.onSurfaceVariant.withOpacity(0.4),
                         shape: BoxShape.circle,
                       ),
                     ),
                     Text(
                       timeFormat.format(_now),
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontWeight: FontWeight.w500,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color:
+                            theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.1,
                       ),
                     ),
                   ],
@@ -101,30 +119,58 @@ class _GreetingHeaderWidgetState extends State<GreetingHeaderWidget> {
               ],
             ),
           ),
+          const SizedBox(width: 16),
           Container(
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(16),
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: IconButton(
-              icon: CustomIconWidget(
-                iconName: 'settings',
-                color: theme.colorScheme.onSurface,
-                size: 24,
-              ),
-              onPressed: () {
-                Navigator.pushNamed(context, '/settings-screen');
-              },
-              tooltip: 'Settings',
-              style: IconButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildActionButton(
+                  icon: Icons.timer_rounded,
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/app-limits-screen'),
+                  theme: theme,
                 ),
-              ),
+                const SizedBox(width: 4),
+                _buildActionButton(
+                  iconWidget: CustomIconWidget(
+                    iconName: 'settings',
+                    color: theme.colorScheme.onSurface,
+                    size: 20,
+                  ),
+                  onPressed: () =>
+                      Navigator.pushNamed(context, '/settings-screen'),
+                  theme: theme,
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    IconData? icon,
+    Widget? iconWidget,
+    required VoidCallback onPressed,
+    required ThemeData theme,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        child: iconWidget ??
+            Icon(
+              icon,
+              size: 20,
+              color: theme.colorScheme.onSurface,
+            ),
       ),
     );
   }

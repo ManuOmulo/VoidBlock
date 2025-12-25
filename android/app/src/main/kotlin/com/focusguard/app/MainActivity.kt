@@ -39,5 +39,10 @@ class MainActivity: FlutterFragmentActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
             StrictModeChannel.CHANNEL_NAME
         ).setMethodCallHandler(StrictModeChannel(this))
+        
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            AppLimitChannel.CHANNEL_NAME
+        ).setMethodCallHandler(AppLimitChannel(this))
     }
 }

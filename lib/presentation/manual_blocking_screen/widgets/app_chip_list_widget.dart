@@ -1,9 +1,5 @@
 import 'dart:convert';
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
-
-import '../../../core/app_export.dart';
 import '../../../widgets/custom_icon_widget.dart';
 
 /// Widget displaying selected apps as horizontal scrollable chips

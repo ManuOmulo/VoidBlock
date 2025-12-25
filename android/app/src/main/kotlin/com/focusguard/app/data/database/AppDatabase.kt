@@ -19,9 +19,11 @@ import com.focusguard.app.data.database.entities.*
         StrictModeSessionEntity::class,
         BlockingSessionEntity::class,
         SessionBlockedAppEntity::class,
-        StrictModePreferencesEntity::class
+        StrictModePreferencesEntity::class,
+        AppLimitEntity::class,
+        AppLimitAppEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -33,6 +35,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun blockingSessionDao(): BlockingSessionDao
     abstract fun sessionBlockedAppDao(): SessionBlockedAppDao
     abstract fun strictModePreferencesDao(): StrictModePreferencesDao
+    abstract fun appLimitDao(): AppLimitDao
     
     companion object {
         private const val DATABASE_NAME = "focusguard_database"
@@ -52,7 +55,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 // Production: No fallback to destructive migration
                 // If migration fails, app will crash - this forces us to write correct migrations
                 .build()
@@ -135,6 +138,40 @@ abstract class AppDatabase : RoomDatabase() {
                 // Add cooldown tracking columns to schedules table
                 database.execSQL("ALTER TABLE schedules ADD COLUMN cooldown_started_at INTEGER")
                 database.execSQL("ALTER TABLE schedules ADD COLUMN cooldown_confirmed INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
+        private val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Create app_limits table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS app_limits (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        limitMinutes INTEGER NOT NULL,
+                        isActive INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        is_strict_mode INTEGER NOT NULL,
+                        strict_mode_level TEXT NOT NULL DEFAULT 'NONE',
+                        strict_mode_pin TEXT,
+                        strict_mode_cooldown_minutes INTEGER,
+                        hard_mode_duration_minutes INTEGER,
+                        hard_mode_ends_at INTEGER,
+                        last_unlocked_at INTEGER,
+                        unlocked_until_midnight INTEGER NOT NULL DEFAULT 0
+                    )
+                """.trimIndent())
+                
+                // Create app_limit_apps table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS app_limit_apps (
+                        limitId INTEGER NOT NULL,
+                        packageName TEXT NOT NULL,
+                        appName TEXT NOT NULL,
+                        PRIMARY KEY(limitId, packageName),
+                        FOREIGN KEY(limitId) REFERENCES app_limits(id) ON DELETE CASCADE
+                    )
+                """.trimIndent())
             }
         }
     }

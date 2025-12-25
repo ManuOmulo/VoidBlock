@@ -63,8 +63,9 @@ class InsightsWidgetState extends State<InsightsWidget> {
         children: [
           Text(
             'Insights',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
                 ),
           ),
           SizedBox(height: 12),

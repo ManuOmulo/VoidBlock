@@ -210,8 +210,9 @@ class ActiveSchedulesWidgetState extends State<ActiveSchedulesWidget> {
             children: [
               Text(
                 'Active Schedules',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
                 ),
               ),
               TextButton(

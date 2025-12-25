@@ -31,14 +31,12 @@ class ProductivityCalculator {
      * Calculate overall productivity score
      */
     fun calculateProductivityScore(
-        logs: List<UsageLogEntity>,
+        blockedAttempts: Int,
+        totalBlockedTime: Long,
+        totalUsageTime: Long,
         daysCount: Int
     ): Double {
-        if (logs.isEmpty() || daysCount <= 0) return 0.0
-        
-        val blockedLogs = logs.filter { it.wasBlocked }
-        val blockedAttempts = blockedLogs.size
-        val totalBlockedTime = blockedLogs.sumOf { it.durationMillis }
+        if (daysCount <= 0) return 0.0
         
         // 1. Blocked Attempts Score (inverse - fewer is better)
         val avgBlocksPerDay = blockedAttempts.toDouble() / daysCount
@@ -48,21 +46,20 @@ class ProductivityCalculator {
         val avgBlockedTimePerDay = totalBlockedTime.toDouble() / daysCount
         val timeSavedScore = min(avgBlockedTimePerDay / IDEAL_BLOCKED_TIME_PER_DAY, 1.0) * 100
         
-        // 3. Consistency Score (blocking regularly is good)
-        val daysWithBlocking = blockedLogs
-            .groupBy { it.startTime / (24 * 60 * 60 * 1000) }
-            .size
-        val consistencyScore = (daysWithBlocking.toDouble() / daysCount) * 100
-        
-        // 4. Usage Pattern Score (declining blocked attempts over time = improvement)
-        val usagePatternScore = calculateUsageTrendScore(blockedLogs)
+        // 3. Focus Ratio Score (unblocked usage vs blocked attempts)
+        val focusRatioScore = if (totalUsageTime > 0) {
+            val totalSavedMinutes = totalBlockedTime / 60000.0
+            val totalUsageMinutes = totalUsageTime / 60000.0
+            (totalSavedMinutes / (totalSavedMinutes + totalUsageMinutes)) * 100
+        } else {
+            0.0
+        }
         
         // Weighted average
         val totalScore = (
             attemptScore * BLOCKED_ATTEMPTS_WEIGHT +
             timeSavedScore * TIME_SAVED_WEIGHT +
-            consistencyScore * CONSISTENCY_WEIGHT +
-            usagePatternScore * USAGE_PATTERN_WEIGHT
+            focusRatioScore * (CONSISTENCY_WEIGHT + USAGE_PATTERN_WEIGHT) // Consolidate simpler metrics
         )
         
         return totalScore.coerceIn(0.0, 100.0)
