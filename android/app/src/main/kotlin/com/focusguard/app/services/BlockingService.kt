@@ -4,12 +4,16 @@ import android.app.Service
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.app.usage.UsageEvents
 import android.os.IBinder
+import android.content.SharedPreferences
 import com.focusguard.app.data.database.AppDatabase
 import com.focusguard.app.data.database.dao.BlockedAppDao
 import com.focusguard.app.utils.MotivationalQuotes
 import com.focusguard.app.utils.NotificationHelper
 import kotlinx.coroutines.*
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * Foreground service that monitors app usage and blocks access to specified apps
@@ -219,8 +223,8 @@ class BlockingService : Service() {
                 
                 // Periodic checks
                 if (now - lastLimitCheck >= LIMIT_CHECK_INTERVAL_MS) {
-                    checkAppLimits()
                     checkMidnightReset()
+                    checkAppLimits()
                     lastLimitCheck = now
                 }
                 
@@ -253,20 +257,8 @@ class BlockingService : Service() {
                     if (limit.unlockedUntilMidnight) continue
                     
                     val pgs = appLimitDao.getPackageNamesForLimit(limit.id)
-                    var totalUsageMillis = 0L
-                    
-                    pgs.forEach { pkg ->
-                        val usage = stats[pkg]?.totalTimeInForeground ?: 0L
-                        totalUsageMillis += usage
-                        
-                        // Augment with current session if this app is currently in foreground
-                        if (pkg == currentForegroundPackage && currentSessionStartTime > 0) {
-                            val sessionDuration = currentTime - currentSessionStartTime
-                            if (sessionDuration > 0) {
-                                totalUsageMillis += sessionDuration
-                            }
-                        }
-                    }
+                    // Get pinpoint accurate usage using events
+                    val totalUsageMillis = getAccurateUsageToday(pgs.toSet())
                     
                     val totalUsageMinutes = totalUsageMillis / (60 * 1000)
                     if (totalUsageMinutes >= limit.limitMinutes) {
@@ -287,20 +279,76 @@ class BlockingService : Service() {
     }
 
     /**
-     * Reset unlocked status at midnight
+     * Reset unlocked status at midnight using SharedPreferences for persistence
      */
     private suspend fun checkMidnightReset() {
-        val currentDay = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)
-        if (currentDay != lastDayOfMonth) {
-            lastDayOfMonth = currentDay
-            // Reset all limits' unlocked status
+        val prefs = getSharedPreferences("focusguard_prefs", Context.MODE_PRIVATE)
+        val lastResetDate = prefs.getString("last_reset_date", "")
+        val currentDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+        
+        if (lastResetDate != currentDate) {
+            android.util.Log.d("BlockingService", "MIDNIGHT RESET TRIGGERED: $lastResetDate -> $currentDate")
+            
+            // Reset all limits' unlocked status in DB
             val allLimits = appLimitDao.getAllLimits()
             for (limit in allLimits) {
                 if (limit.unlockedUntilMidnight) {
                     appLimitDao.setUnlockedStatus(limit.id, false)
                 }
             }
+            
+            // Clear current tracking to avoid spillover from yesterday
+            currentSessionStartTime = System.currentTimeMillis()
+            
+            // Update last reset date
+            prefs.edit().putString("last_reset_date", currentDate).apply()
         }
+    }
+
+    private fun getStartOfDay(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
+    }
+
+    private fun getAccurateUsageToday(targetPackages: Set<String>): Long {
+        val startOfDay = getStartOfDay()
+        val currentTime = System.currentTimeMillis()
+        val events = usageStatsManager.queryEvents(startOfDay, currentTime)
+        val event = UsageEvents.Event()
+        
+        val usageMap = mutableMapOf<String, Long>()
+        val startMap = mutableMapOf<String, Long>()
+        
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (!targetPackages.contains(event.packageName)) continue
+            
+            when (event.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    startMap[event.packageName] = event.timeStamp
+                }
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    val start = startMap[event.packageName]
+                    if (start != null) {
+                        val duration = event.timeStamp - start
+                        usageMap[event.packageName] = (usageMap[event.packageName] ?: 0L) + duration
+                        startMap.remove(event.packageName)
+                    }
+                }
+            }
+        }
+        
+        // Add currently active sessions
+        startMap.forEach { (pkg, start) ->
+            val duration = currentTime - start
+            usageMap[pkg] = (usageMap[pkg] ?: 0L) + duration
+        }
+        
+        return usageMap.values.sum()
     }
     
     /**
@@ -359,14 +407,18 @@ class BlockingService : Service() {
      */
     private fun getForegroundApp(): String? {
         val currentTime = System.currentTimeMillis()
-        val stats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_DAILY,
-            currentTime - 1000 * 10, // Last 10 seconds
-            currentTime
-        )
+        val events = usageStatsManager.queryEvents(currentTime - 5000, currentTime)
+        val event = UsageEvents.Event()
+        var lastPackage: String? = null
         
-        // Find the app with most recent timestamp
-        return stats?.maxByOrNull { it.lastTimeUsed }?.packageName
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                lastPackage = event.packageName
+            }
+        }
+        
+        return lastPackage ?: currentForegroundPackage
     }
     
     /**

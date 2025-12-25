@@ -1,6 +1,7 @@
 package com.focusguard.app.channels
 
 import android.app.usage.UsageStatsManager
+import android.app.usage.UsageEvents
 import android.content.Context
 import android.content.Intent
 import com.focusguard.app.data.database.AppDatabase
@@ -311,19 +312,15 @@ class AppLimitChannel(private val context: Context) : MethodChannel.MethodCallHa
         scope.launch {
             try {
                 val usageMap = mutableMapOf<String, Long>()
-                val calendar = Calendar.getInstance()
-                calendar.set(Calendar.HOUR_OF_DAY, 0)
-                calendar.set(Calendar.MINUTE, 0)
-                calendar.set(Calendar.SECOND, 0)
-                calendar.set(Calendar.MILLISECOND, 0)
-                val startOfDay = calendar.timeInMillis
+                val startOfDay = getStartOfDay()
                 val currentTime = System.currentTimeMillis()
-
-                val stats = usageStatsManager.queryAndAggregateUsageStats(startOfDay, currentTime)
+                
+                // Use the new accurate aggregator
+                val usageMapDetails = getAccurateUsageToday(packageNames.toSet())
                 
                 packageNames.forEach { pkg ->
-                    val usage = stats[pkg]?.totalTimeInForeground ?: 0L
-                    usageMap[pkg] = usage / (60 * 1000) // Convert to minutes
+                    val usage = usageMapDetails[pkg] ?: 0L
+                    usageMap[pkg] = (usage / (60 * 1000)).toInt().toLong() // Convert to minutes for UI
                 }
                 
                 result.success(usageMap)
@@ -331,6 +328,52 @@ class AppLimitChannel(private val context: Context) : MethodChannel.MethodCallHa
                 result.error("USAGE_STATS_ERROR", e.message, null)
             }
         }
+    }
+
+    private fun getAccurateUsageToday(targetPackages: Set<String>): Map<String, Long> {
+        val startOfDay = getStartOfDay()
+        val currentTime = System.currentTimeMillis()
+        val events = usageStatsManager.queryEvents(startOfDay, currentTime)
+        val event = UsageEvents.Event()
+        
+        val usageMap = mutableMapOf<String, Long>()
+        val startMap = mutableMapOf<String, Long>()
+        
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (!targetPackages.contains(event.packageName)) continue
+            
+            when (event.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    startMap[event.packageName] = event.timeStamp
+                }
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    val start = startMap[event.packageName]
+                    if (start != null) {
+                        val duration = event.timeStamp - start
+                        usageMap[event.packageName] = (usageMap[event.packageName] ?: 0L) + duration
+                        startMap.remove(event.packageName)
+                    }
+                }
+            }
+        }
+        
+        // Add currently active sessions
+        startMap.forEach { (pkg, start) ->
+            val duration = currentTime - start
+            usageMap[pkg] = (usageMap[pkg] ?: 0L) + duration
+        }
+        
+        return usageMap
+    }
+
+    private fun getStartOfDay(): Long {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        return calendar.timeInMillis
     }
 
     private fun notifyService() {
