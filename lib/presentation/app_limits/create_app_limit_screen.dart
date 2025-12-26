@@ -384,12 +384,24 @@ class _CreateAppLimitScreenState extends State<CreateAppLimitScreen> {
     final isSelected = _strictModeLevel == level;
     return Expanded(
       child: FilterChip(
-        label: Text(level),
+        label: Text(
+          level,
+          style: TextStyle(
+            color: isSelected ? Colors.white : color.withValues(alpha: 0.8),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 12,
+          ),
+        ),
         selected: isSelected,
         onSelected: (val) => setState(() => _strictModeLevel = level),
-        selectedColor: color.withValues(alpha: 0.2),
-        checkmarkColor: color,
-        avatar: Icon(icon, size: 16, color: isSelected ? color : Colors.grey),
+        selectedColor: color,
+        showCheckmark: false,
+        avatar: Icon(
+          icon,
+          size: 16,
+          color: isSelected ? Colors.white : color.withValues(alpha: 0.8),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
       ),
     );
   }

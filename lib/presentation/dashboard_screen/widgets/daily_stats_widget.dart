@@ -16,7 +16,9 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
   final AnalyticsService _analyticsService = AnalyticsService();
 
   String _timeSaved = '0m';
-  int _appsBlocked = 0;
+  int _blockedTries = 0;
+  String _weeklyTimeSaved = '0m';
+  int _weeklyBlockedTries = 0;
   double _productivityScore = 0.0;
   bool _isLoading = true;
 
@@ -32,28 +34,37 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
 
   Future<void> _loadStats() async {
     try {
-      // Get stats for today
-      final stats = await _analyticsService.getUsageStats(days: 1).timeout(
-        Duration(seconds: 5),
-        onTimeout: () {
-          print('Stats loading timed out');
-          return {};
-        },
-      );
+      // Get stats for today (days: 1 triggers midnight reset logic in native)
+      final dailyStats = await _analyticsService.getUsageStats(days: 1).timeout(
+            Duration(seconds: 5),
+            onTimeout: () => {},
+          );
+
+      // Get stats for this week (days: 7 triggers Monday reset logic in native)
+      final weeklyStats =
+          await _analyticsService.getUsageStats(days: 7).timeout(
+                Duration(seconds: 5),
+                onTimeout: () => {},
+              );
+
       final score =
           await _analyticsService.getProductivityScore(days: 7).timeout(
-        Duration(seconds: 5),
-        onTimeout: () {
-          print('Score loading timed out');
-          return 0.0;
-        },
-      );
+                Duration(seconds: 5),
+                onTimeout: () => 0.0,
+              );
 
       if (mounted) {
         setState(() {
-          final blockedMs = (stats['blockedTime'] as int?) ?? 0;
-          _timeSaved = _formatDuration(blockedMs);
-          _appsBlocked = (stats['blockedCount'] as int?) ?? 0;
+          // Daily
+          final dailyBlockedMs = (dailyStats['blockedTime'] as int?) ?? 0;
+          _timeSaved = _formatDuration(dailyBlockedMs);
+          _blockedTries = (dailyStats['blockedCount'] as int?) ?? 0;
+
+          // Weekly
+          final weeklyBlockedMs = (weeklyStats['blockedTime'] as int?) ?? 0;
+          _weeklyTimeSaved = _formatDuration(weeklyBlockedMs);
+          _weeklyBlockedTries = (weeklyStats['blockedCount'] as int?) ?? 0;
+
           _productivityScore = score;
           _isLoading = false;
         });
@@ -88,12 +99,23 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Today\'s Progress',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.2,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Productivity Overview',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
+              ),
+              Icon(
+                Icons.update_rounded,
+                size: 16,
+                color:
+                    theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              ),
+            ],
           ),
           SizedBox(height: 12),
           _isLoading
@@ -113,6 +135,8 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
                   padding: EdgeInsets.all(20),
                   child: Column(
                     children: [
+                      _buildTargetLabel(theme, 'TODAY'),
+                      SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -125,19 +149,51 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
                               color: theme.colorScheme.primary,
                             ),
                           ),
-                          Container(
-                            width: 1,
-                            height: 60,
-                            color: theme.dividerColor.withValues(alpha: 0.5),
-                          ),
+                          _buildDivider(theme),
                           Expanded(
                             child: _buildStatItem(
                               context,
                               theme,
                               icon: 'block',
-                              label: 'Apps Blocked',
-                              value: '$_appsBlocked',
+                              label: 'Blocked Tries',
+                              value: '$_blockedTries',
                               color: theme.colorScheme.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Divider(
+                          height: 1,
+                          color: theme.dividerColor.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      _buildTargetLabel(theme, 'THIS WEEK'),
+                      SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildStatItem(
+                              context,
+                              theme,
+                              icon: 'auto_graph',
+                              label: 'Total Saved',
+                              value: _weeklyTimeSaved,
+                              color: theme.colorScheme.tertiary,
+                              isSmall: true,
+                            ),
+                          ),
+                          _buildDivider(theme),
+                          Expanded(
+                            child: _buildStatItem(
+                              context,
+                              theme,
+                              icon: 'fact_check',
+                              label: 'Blocked Tries',
+                              value: '$_weeklyBlockedTries',
+                              color: theme.colorScheme.onSurfaceVariant,
+                              isSmall: true,
                             ),
                           ),
                         ],
@@ -154,6 +210,28 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
                   ),
                 ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDivider(ThemeData theme) {
+    return Container(
+      width: 1,
+      height: 40,
+      color: theme.dividerColor.withValues(alpha: 0.5),
+    );
+  }
+
+  Widget _buildTargetLabel(ThemeData theme, String label) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Text(
+        label,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.2,
+        ),
       ),
     );
   }
@@ -185,29 +263,37 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
     required String label,
     required String value,
     required Color color,
+    bool isSmall = false,
   }) {
     return Column(
       children: [
         Container(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(isSmall ? 12 : 16),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.1),
             shape: BoxShape.circle,
           ),
-          child: CustomIconWidget(iconName: icon, size: 28, color: color),
+          child: CustomIconWidget(
+              iconName: icon, size: isSmall ? 22 : 28, color: color),
         ),
-        SizedBox(height: 12),
+        SizedBox(height: isSmall ? 8 : 12),
         Text(
           value,
-          style: theme.textTheme.headlineSmall?.copyWith(
+          style: (isSmall
+                  ? theme.textTheme.titleMedium
+                  : theme.textTheme.headlineSmall)
+              ?.copyWith(
             fontWeight: FontWeight.w700,
             color: theme.colorScheme.onSurface,
           ),
         ),
-        SizedBox(height: 4),
+        SizedBox(height: 2),
         Text(
           label,
-          style: theme.textTheme.bodyMedium?.copyWith(
+          style: (isSmall
+                  ? theme.textTheme.labelSmall
+                  : theme.textTheme.bodyMedium)
+              ?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
             fontWeight: FontWeight.w500,
           ),

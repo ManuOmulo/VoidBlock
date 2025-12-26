@@ -101,8 +101,15 @@ class ScheduleDetailsSection extends StatelessWidget {
                       runSpacing: 1.h,
                       children: suggestedNames.map((name) {
                         return ActionChip(
-                          label: Text(name),
+                          label: Text(
+                            name,
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: theme.colorScheme.onSecondaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                           onPressed: () => onSuggestionTap(name),
+                          backgroundColor: theme.colorScheme.secondaryContainer,
                           avatar: CustomIconWidget(
                             iconName: 'lightbulb_outline',
                             color: theme.colorScheme.primary,

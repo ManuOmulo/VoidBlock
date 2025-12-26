@@ -85,158 +85,66 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
     await _loadBlockedApps();
   }
 
-  void _endBlockingEarly(int index) {
-    HapticFeedback.mediumImpact();
-    final app = _blockedApps[index];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('End Blocking Early?'),
-        content: Text(
-          'Are you sure you want to unblock ${app["name"]}? This will end the current blocking session.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-
-              // Stop the entire session
-              final blockingService = BlockingService();
-              await blockingService.stopBlocking();
-
-              if (mounted) {
-                setState(() {
-                  _blockedApps = [];
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Blocking session ended'),
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-              }
-            },
-            child: Text(
-              'End Session',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEmergencyUnlock(int index) {
-    HapticFeedback.heavyImpact();
-    final app = _blockedApps[index];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            CustomIconWidget(
-              iconName: 'lock',
-              size: 24,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            SizedBox(width: 8),
-            Text('Strict Mode Active'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '${app["name"]} is in strict mode and cannot be unblocked until the schedule ends.',
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Emergency unlock requires PIN verification and will be logged in your productivity report.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/strict-mode-lock-screen');
-            },
-            child: Text(
-              'Emergency Unlock',
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: EdgeInsets.symmetric(vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Currently Blocked',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.2,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Currently Blocked',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-              if (_blockedApps.isNotEmpty)
-                TextButton(
-                  onPressed: () {
-                    HapticFeedback.lightImpact();
-                    Navigator.pushNamed(context, '/app-selection-screen');
-                  },
-                  child: Text('Manage'),
-                ),
-            ],
+                if (_blockedApps.isNotEmpty)
+                  GestureDetector(
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/app-selection-screen'),
+                    child: Text(
+                      'Manage',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
           SizedBox(height: 12),
           _isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? Center(
+                  child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ))
               : _blockedApps.isEmpty
                   ? _buildEmptyState(theme)
-                  : GridView.builder(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.75,
+                  : SizedBox(
+                      height: 70,
+                      child: ListView.builder(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _blockedApps.length,
+                        itemBuilder: (context, index) {
+                          return _buildBlockedAppChip(
+                            context,
+                            theme,
+                            _blockedApps[index],
+                          );
+                        },
                       ),
-                      itemCount: _blockedApps.length,
-                      itemBuilder: (context, index) {
-                        return _buildBlockedAppCard(
-                          context,
-                          theme,
-                          _blockedApps[index],
-                          index,
-                        );
-                      },
                     ),
         ],
       ),
@@ -244,199 +152,151 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
   }
 
   Widget _buildEmptyState(ThemeData theme) {
-    return Container(
-      padding: EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          CustomIconWidget(
-            iconName: 'block',
-            size: 64,
-            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        decoration: BoxDecoration(
+          color:
+              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
           ),
-          SizedBox(height: 16),
-          Text(
-            'No Apps Blocked',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+        ),
+        child: Row(
+          children: [
+            CustomIconWidget(
+              iconName: 'check_circle',
+              size: 20,
+              color: theme.colorScheme.secondary,
             ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 8),
-          Text(
-            'Start a blocking session to improve your focus',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+            SizedBox(width: 12),
+            Text(
+              'All clear! No distractions active.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildBlockedAppCard(
+  Widget _buildBlockedAppChip(
     BuildContext context,
     ThemeData theme,
     Map<String, dynamic> app,
-    int index,
   ) {
-    final hours = app["remainingMinutes"] ~/ 60;
-    final minutes = app["remainingMinutes"] % 60;
+    final remaining = app["remainingMinutes"];
 
     return Container(
+      margin: EdgeInsets.only(right: 12),
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+        ),
         boxShadow: [
           BoxShadow(
-            color: theme.shadowColor.withValues(alpha: 0.05),
+            color: theme.shadowColor.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: Offset(0, 4),
           ),
         ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            HapticFeedback.lightImpact();
-            if (app["isStrictMode"]) {
-              _showEmergencyUnlock(index);
-            }
-          },
-          onLongPress: () {
-            if (!app["isStrictMode"]) {
-              _endBlockingEarly(index);
-            } else {
-              _showEmergencyUnlock(index);
-            }
-          },
-          borderRadius: BorderRadius.circular(20),
-          child: Padding(
-            padding: EdgeInsets.all(12),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: app["iconBase64"] != null
-                            ? Image.memory(
-                                base64Decode(app["iconBase64"]),
-                                width: 56,
-                                height: 56,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => CustomIconWidget(
-                                  iconName: 'apps',
-                                  size: 24,
-                                  color: theme.colorScheme.primary,
-                                ),
-                              )
-                            : CustomImageWidget(
-                                imageUrl:
-                                    app["icon"], // Fallback if icon URL exists
-                                width: 56,
-                                height: 56,
-                                fit: BoxFit.cover,
-                                semanticLabel: "${app["name"]} icon",
-                              ),
-                      ),
-                    ),
-                    if (app["isStrictMode"])
-                      Positioned(
-                        top: -4,
-                        right: -4,
-                        child: Container(
-                          padding: EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.error,
-                            shape: BoxShape.circle,
-                          ),
-                          child: CustomIconWidget(
-                            iconName: 'lock',
-                            size: 12,
-                            color: theme.colorScheme.onError,
-                          ),
-                        ),
-                      ),
-                  ],
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildAppIcon(app, theme),
+          SizedBox(width: 10),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                app["name"],
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
-                SizedBox(height: 8),
-                Text(
-                  app["name"],
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 4),
-                Text(
-                  hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m',
-                  style: theme.textTheme.bodySmall?.copyWith(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.access_time_filled_rounded,
+                    size: 10,
                     color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
                   ),
-                ),
-                SizedBox(height: 8),
-                if (!app["isStrictMode"])
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => _endBlockingEarly(index),
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        side: BorderSide(
-                          color: theme.colorScheme.error,
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        'End Early',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.error,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Locked',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
+                  SizedBox(width: 4),
+                  Text(
+                    '${remaining}m left',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 10,
                     ),
                   ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
-        ),
+          if (app["isStrictMode"]) ...[
+            SizedBox(width: 8),
+            Container(
+              padding: EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.lock_rounded,
+                size: 8,
+                color: theme.colorScheme.error,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppIcon(Map<String, dynamic> app, ThemeData theme) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: app["iconBase64"] != null
+            ? Image.memory(
+                base64Decode(app["iconBase64"]),
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _fallbackIcon(theme),
+              )
+            : _fallbackIcon(theme),
+      ),
+    );
+  }
+
+  Widget _fallbackIcon(ThemeData theme) {
+    return Center(
+      child: CustomIconWidget(
+        iconName: 'apps',
+        size: 16,
+        color: theme.colorScheme.primary.withValues(alpha: 0.5),
       ),
     );
   }

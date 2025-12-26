@@ -38,9 +38,10 @@ class AppUsagePieChart extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'App Usage',
+                'Top App Usage (7 Days)',
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
                 ),
               ),
               Container(
@@ -52,9 +53,10 @@ class AppUsagePieChart extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Weekly',
+                  'Weekly Distribution',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -68,7 +70,7 @@ class AppUsagePieChart extends StatelessWidget {
                 PieChart(
                   PieChartData(
                     sectionsSpace: 2,
-                    centerSpaceRadius: 60,
+                    centerSpaceRadius: 65,
                     sections: chartSections,
                   ),
                 ),
@@ -84,9 +86,10 @@ class AppUsagePieChart extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Total Time',
+                        'Total This Week',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -147,11 +150,11 @@ class AppUsagePieChart extends StatelessWidget {
         color: colors[index % colors.length],
         value: value,
         title: '${percentage.round()}%',
-        radius: 20,
+        radius: 40,
         titleStyle: TextStyle(
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.bold,
-          color: theme.colorScheme.onPrimary, // Adjust for contrast if needed
+          color: theme.colorScheme.onPrimary,
         ),
       );
     });

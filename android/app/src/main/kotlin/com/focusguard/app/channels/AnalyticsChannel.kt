@@ -98,8 +98,29 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 val endTime = call.argument<Long>("endTime") ?: System.currentTimeMillis()
                 exportUsageData(startTime, endTime, result)
             }
+
+            "clearUsageData" -> {
+                clearUsageData(result)
+            }
             
             else -> result.notImplemented()
+        }
+    }
+    
+    /**
+     * Clear all usage data
+     */
+    private fun clearUsageData(result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    database.usageLogDao().clearAllLogs()
+                }
+                result.success(true)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                result.error("CLEAR_ERROR", e.message, null)
+            }
         }
     }
     
@@ -109,7 +130,29 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
     private fun getUsageStats(days: Int, result: MethodChannel.Result) {
         scope.launch {
             try {
-                val startTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+                val startTime = if (days == 1) {
+                    val cal = Calendar.getInstance()
+                    cal.set(Calendar.HOUR_OF_DAY, 0)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    cal.timeInMillis
+                } else if (days == 7) {
+                    // Weekly reset: Start of current week (Monday 00:00:00)
+                    val cal = Calendar.getInstance()
+                    cal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                    cal.set(Calendar.HOUR_OF_DAY, 0)
+                    cal.set(Calendar.MINUTE, 0)
+                    cal.set(Calendar.SECOND, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
+                    
+                    if (cal.timeInMillis > System.currentTimeMillis()) {
+                        cal.add(Calendar.WEEK_OF_YEAR, -1)
+                    }
+                    cal.timeInMillis
+                } else {
+                    System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+                }
                 
                 val stats = withContext(Dispatchers.IO) {
                     val rawBlockedTime = database.usageLogDao().getTotalBlockedTime(startTime) ?: 0L
@@ -311,21 +354,21 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     cal.set(Calendar.SECOND, 59)
                     val dayEnd = cal.timeInMillis
                     
-                    val dayStats = withContext(Dispatchers.IO) {
-                        usageStatsManager.queryAndAggregateUsageStats(dayStart, dayEnd)
-                    }
-                    
-                    val totalTimeMs = dayStats.values.sumOf { it.totalTimeInForeground }
-                    
-                    // Also get blocked stats from DB for this day
-                    val blockedCount = withContext(Dispatchers.IO) {
-                        database.usageLogDao().getBlockedAttemptsCountForPeriod(dayStart, dayEnd)
+                    // Calculate Estimated Time Saved for this day
+                    val dayData = withContext(Dispatchers.IO) {
+                        val blockedCountDay = database.usageLogDao().getBlockedAttemptsCountForPeriod(dayStart, dayEnd)
+                        
+                        // Use the same personalized average session length logic or a conservative 5-min default
+                        // To keep it simple and consistent for charts, we use a 5-minute estimate per block here
+                        // but cap the total saved time to 16 hours so it doesn't exceed a waking day.
+                        val minutesSaved = (blockedCountDay * 5L).coerceAtMost(16 * 60L)
+                        Pair(minutesSaved, blockedCountDay)
                     }
                     
                     statsList.add(mapOf(
                         "date" to dateFormat.format(Date(dayStart)),
-                        "totalTime" to (totalTimeMs / 60000).toInt(),
-                        "blockedCount" to blockedCount
+                        "totalTime" to dayData.first.toInt(), // This is now "Minutes Saved"
+                        "blockedCount" to dayData.second
                     ))
                 }
                 

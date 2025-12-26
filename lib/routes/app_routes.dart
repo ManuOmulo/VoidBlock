@@ -8,6 +8,7 @@ import '../presentation/strict_mode_lock_screen/strict_mode_lock_screen.dart';
 import '../presentation/permission_onboarding_screen/permission_onboarding_screen.dart';
 import '../presentation/insights_screen/insights_screen.dart';
 import '../presentation/app_limits/app_limits_screen.dart';
+import '../presentation/settings_screen/settings_screen.dart';
 
 class AppRoutes {
   // TODO: Add your routes here
@@ -21,6 +22,7 @@ class AppRoutes {
   static const String permissionOnboarding = '/permission-onboarding-screen';
   static const String insights = '/insights-screen';
   static const String appLimits = '/app-limits-screen';
+  static const String settings = '/settings-screen';
 
   static Map<String, WidgetBuilder> routes = {
     initial: (context) => const DashboardScreen(),
@@ -33,6 +35,6 @@ class AppRoutes {
     permissionOnboarding: (context) => const PermissionOnboardingScreen(),
     insights: (context) => const InsightsScreen(),
     appLimits: (context) => const AppLimitsScreen(),
-    // TODO: Add your other routes here
+    settings: (context) => const SettingsScreen(),
   };
 }

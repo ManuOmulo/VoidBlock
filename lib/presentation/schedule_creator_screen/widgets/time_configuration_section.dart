@@ -207,9 +207,21 @@ class TimeConfigurationSection extends StatelessWidget {
                       final dataIndex = (index + 1) % 7;
                       final isSelected = selectedDays.contains(dataIndex);
                       return FilterChip(
-                        label: Text(dayNames[index]),
+                        label: Text(
+                          dayNames[index],
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: isSelected
+                                ? theme.colorScheme.onPrimary
+                                : theme.colorScheme.onSurface,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                        ),
                         selected: isSelected,
                         onSelected: (_) => onDayToggle(dataIndex),
+                        selectedColor: theme.colorScheme.primary,
+                        backgroundColor: theme.colorScheme.surface,
                         avatar: isSelected
                             ? CustomIconWidget(
                                 iconName: 'check',

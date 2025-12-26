@@ -16,6 +16,8 @@ import './widgets/insights_widget.dart';
 import './widgets/active_limits_widget.dart';
 
 import '../../services/permission_service.dart';
+import '../../services/analytics_service.dart';
+import '../../services/blocking_service.dart';
 
 /// Dashboard Screen - Primary hub for productivity management
 /// Shows active schedules, blocked apps, and daily statistics
@@ -174,97 +176,60 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
-  Future<void> _showQuickBlockingSheet() async {
+  Future<void> _handleInstantFocus() async {
     HapticFeedback.mediumImpact();
 
-    // TODO: Implement getLastSession in BlockingService to retrieve actual last session
-    // For now, show a dialog explaining the feature
-    final confirmed = await showDialog<bool>(
+    // Show loading indicator
+    showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            CustomIconWidget(
-              iconName: 'replay',
-              size: 24,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            SizedBox(width: 12),
-            Text('Quick Repeat'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'This will repeat your last blocking session with:',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primaryContainer
-                    .withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.apps, size: 16),
-                      SizedBox(width: 8),
-                      Text('Same apps'),
-                    ],
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.timer, size: 16),
-                      SizedBox(width: 8),
-                      Text('Same duration'),
-                    ],
-                  ),
-                  SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.settings, size: 16),
-                      SizedBox(width: 8),
-                      Text('Same settings'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              'Note: This feature will be fully implemented in the next update. For now, use Manual Blocking to configure your session.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
-                  ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text('Go to Manual Blocking'),
-          ),
-        ],
-      ),
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    if (confirmed == true) {
-      Navigator.pushNamed(context, '/manual-blocking-screen');
+    try {
+      final analyticsService = AnalyticsService();
+      final blockingService = BlockingService();
+
+      // 1. Get top 5 most used apps today
+      final mostUsedApps = await analyticsService.getMostUsedApps(limit: 5);
+      final appsToBlock = mostUsedApps
+          .map((app) => app['packageName'] as String)
+          .where(
+              (pkg) => pkg != 'com.focusguard.app') // Don't block our own app
+          .toList();
+
+      if (appsToBlock.isEmpty) {
+        if (mounted) Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No distracting apps identified yet.')),
+        );
+        return;
+      }
+
+      // 2. Start a 25-minute focus session (Pomodoro)
+      final success = await blockingService.startBlocking(
+        durationMinutes: 25,
+        apps: appsToBlock,
+        message: "Deep Focus Session Started",
+      );
+
+      if (mounted) Navigator.pop(context); // Close loading
+
+      if (success) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Instant Focus Active! Blocking ${appsToBlock.length} apps.'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
+          );
+          _refreshDashboard();
+        }
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      print('Error starting instant focus: $e');
     }
   }
 
@@ -303,13 +268,13 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showQuickBlockingSheet,
+        onPressed: _handleInstantFocus,
         icon: CustomIconWidget(
-          iconName: 'replay',
+          iconName: 'bolt',
           size: 24,
           color: theme.colorScheme.onPrimary,
         ),
-        label: Text('Quick Repeat'),
+        label: Text('Instant Focus'),
         elevation: 6,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,

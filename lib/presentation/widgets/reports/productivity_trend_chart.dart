@@ -37,9 +37,10 @@ class ProductivityTrendChart extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Focus Trend',
+                'Focus Impact (14 Days)',
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
                 ),
               ),
               Container(
@@ -51,9 +52,10 @@ class ProductivityTrendChart extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Bi-Weekly',
+                  'Bi-Weekly View',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -73,7 +75,7 @@ class ProductivityTrendChart extends StatelessWidget {
                     tooltipRoundedRadius: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(
-                        '${rod.toY.round()}m',
+                        _formatDuration(rod.toY.round()),
                         TextStyle(
                           color: theme.colorScheme.onInverseSurface,
                           fontWeight: FontWeight.bold,
@@ -169,5 +171,14 @@ class ProductivityTrendChart extends StatelessWidget {
       if (val > max) max = val;
     }
     return max == 0 ? 60 : max;
+  }
+
+  String _formatDuration(int minutes) {
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    if (hours > 0) {
+      return '${hours}h ${mins}m';
+    }
+    return '${mins}m';
   }
 }

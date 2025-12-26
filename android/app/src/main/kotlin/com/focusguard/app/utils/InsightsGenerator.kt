@@ -24,15 +24,41 @@ class InsightsGenerator {
         appBreakdown: List<AppUsageBreakdown>,
         productivityScore: Double
     ): List<Insight> {
-        val insights = mutableListOf<Insight>()
+        val recommendations = mutableListOf<Insight>()
+        val achievements = mutableListOf<Insight>()
+        val warnings = mutableListOf<Insight>()
+        val others = mutableListOf<Insight>()
+        
+        // 0. Usage Spike Detection (New Recommendation Logic)
+        val totalUsageTime = appBreakdown.sumOf { it.totalTime }
+        if (totalUsageTime > 0) {
+            val mostUsedApp = appBreakdown.maxByOrNull { it.totalTime }
+            if (mostUsedApp != null) {
+                val usagePercentage = (mostUsedApp.totalTime.toDouble() / totalUsageTime) * 100
+                if (usagePercentage > 15 && mostUsedApp.totalTime > 30 * 60 * 1000) { // >15% and >30 mins
+                    recommendations.add(Insight(
+                        type = "RECOMMENDATION",
+                        title = "Usage Spike Detected",
+                        message = "You've spent ${usagePercentage.toInt()}% of your screen time today on ${mostUsedApp.appName}. Consider a 15-minute limit.",
+                        value = formatDuration(mostUsedApp.totalTime),
+                        severity = "NEUTRAL"
+                    ))
+                }
+            }
+        }
         
         // 1. Productivity Score Insight
-        insights.add(generateProductivityInsight(productivityScore))
+        val productivityInsight = generateProductivityInsight(productivityScore)
+        if (productivityInsight.type == "TIP") {
+            recommendations.add(productivityInsight.copy(type = "RECOMMENDATION"))
+        } else {
+            achievements.add(productivityInsight)
+        }
         
         // 2. Most Blocked App
         val mostBlockedApp = appBreakdown.maxByOrNull { it.blockedCount }
         if (mostBlockedApp != null && mostBlockedApp.blockedCount > 5) {
-            insights.add(Insight(
+            warnings.add(Insight(
                 type = "WARNING",
                 title = "Most Distracted By",
                 message = "You attempted to open ${mostBlockedApp.appName} ${mostBlockedApp.blockedCount} times while blocked",
@@ -44,7 +70,7 @@ class InsightsGenerator {
         // 3. Streak Insight
         val consecutiveDays = calculateConsecutiveDays(dailySummary)
         if (consecutiveDays >= 3) {
-            insights.add(Insight(
+            achievements.add(Insight(
                 type = "ACHIEVEMENT",
                 title = "Blocking Streak!",
                 message = "You've used FocusGuard for $consecutiveDays days in a row",
@@ -53,15 +79,16 @@ class InsightsGenerator {
             ))
         }
         
-        // 4. Time Saved Insight
-        val totalTimeSaved = dailySummary.sumOf { it.totalTime }
-        val hours = totalTimeSaved / (1000 * 60 * 60)
-        if (hours > 1) {
-            insights.add(Insight(
+        // 4. Time Saved Insight (Cumulative over the period)
+        val totalBlocks = dailySummary.sumOf { it.blockedCount }
+        val totalTimeSaved = (totalBlocks * 5L * 60 * 1000).coerceAtMost(dailySummary.size * 16L * 60 * 60 * 1000)
+        if (totalTimeSaved > 15 * 60 * 1000) { // More than 15 mins saved
+            val formattedTime = formatDuration(totalTimeSaved)
+            achievements.add(Insight(
                 type = "ACHIEVEMENT",
-                title = "Time Recovered",
-                message = "You've saved ${hours}h from distracting apps",
-                value = "${hours}h",
+                title = "Total Time Saved",
+                message = "You've successfully reclaimed $formattedTime from distractions recently",
+                value = formattedTime,
                 severity = "POSITIVE"
             ))
         }
@@ -70,7 +97,7 @@ class InsightsGenerator {
         if (dailySummary.size >= 7) {
             val trend = calculateTrend(dailySummary)
             if (trend < -0.1) { // 10% improvement
-                insights.add(Insight(
+                achievements.add(Insight(
                     type = "TREND",
                     title = "Improving!",
                     message = "Blocked attempts decreased compared to last week",
@@ -81,16 +108,15 @@ class InsightsGenerator {
         }
         
         // 6. Milestone Check
-        val totalBlocks = dailySummary.sumOf { it.blockedCount }
         when {
-            totalBlocks >= 500 -> insights.add(Insight(
+            totalBlocks >= 500 -> achievements.add(Insight(
                 type = "MILESTONE",
                 title = "Grand Master!",
                 message = "You've successfully blocked $totalBlocks distraction attempts",
                 value = "$totalBlocks blocks",
                 severity = "POSITIVE"
             ))
-            totalBlocks >= 100 -> insights.add(Insight(
+            totalBlocks >= 100 -> achievements.add(Insight(
                 type = "MILESTONE",
                 title = "Century Club!",
                 message = "You've successfully blocked $totalBlocks distraction attempts",
@@ -99,7 +125,8 @@ class InsightsGenerator {
             ))
         }
         
-        return insights
+        // Priority Combine: Recommendations first, then Warnings, then Achievements, then Others
+        return recommendations + warnings + achievements + others
     }
     
     private fun generateProductivityInsight(score: Double): Insight {
@@ -151,6 +178,16 @@ class InsightsGenerator {
             (secondHalfAvg - firstHalfAvg) / firstHalfAvg
         } else {
             0.0
+        }
+    }
+
+    private fun formatDuration(millis: Long): String {
+        val hours = millis / (1000 * 60 * 60)
+        val minutes = (millis % (1000 * 60 * 60)) / (1000 * 60)
+        return if (hours > 0) {
+            "${hours}h ${minutes}m"
+        } else {
+            "${minutes}m"
         }
     }
 }

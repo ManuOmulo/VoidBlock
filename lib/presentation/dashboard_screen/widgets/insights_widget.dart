@@ -69,7 +69,10 @@ class InsightsWidgetState extends State<InsightsWidget> {
                 ),
           ),
           SizedBox(height: 12),
-          ..._insights.take(3).map((insight) => _buildInsightCard(insight)),
+          ..._insights
+              .where((insight) => insight['type'] != 'ACHIEVEMENT')
+              .take(3)
+              .map((insight) => _buildInsightCard(insight)),
         ],
       ),
     );
@@ -87,13 +90,19 @@ class InsightsWidgetState extends State<InsightsWidget> {
         cardColor = theme.colorScheme.primaryContainer;
         icon = Icons.star;
         break;
+      case 'RECOMMENDATION':
+        cardColor = theme.colorScheme.tertiaryContainer;
+        icon = Icons.lightbulb_outline;
+        break;
       case 'NEGATIVE':
         cardColor = theme.colorScheme.errorContainer;
         icon = Icons.warning_amber;
         break;
       default:
         cardColor = theme.colorScheme.secondaryContainer;
-        icon = Icons.info_outline;
+        icon = insight['type'] == 'RECOMMENDATION'
+            ? Icons.lightbulb_outline
+            : Icons.info_outline;
     }
 
     return Container(

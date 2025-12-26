@@ -191,7 +191,7 @@ class AnalyticsService {
   }
 
   /// Export usage data
-  Future<bool> exportUsageData({
+  Future<Map<String, dynamic>> exportUsageData({
     required int startTime,
     required int endTime,
   }) async {
@@ -200,9 +200,20 @@ class AnalyticsService {
         'startTime': startTime,
         'endTime': endTime,
       });
-      return result as bool;
+      return Map<String, dynamic>.from(result ?? {});
     } on PlatformException catch (e) {
       print('Error exporting usage data: ${e.message}');
+      return {'success': false, 'message': e.message};
+    }
+  }
+
+  /// Clear all usage history
+  Future<bool> clearUsageData() async {
+    try {
+      final result = await platform.invokeMethod('clearUsageData');
+      return result as bool;
+    } on PlatformException catch (e) {
+      print('Error clearing usage data: ${e.message}');
       return false;
     }
   }

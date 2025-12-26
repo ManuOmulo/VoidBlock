@@ -42,6 +42,9 @@ interface UsageLogDao {
     
     @Query("DELETE FROM usage_logs WHERE startTime < :timestamp")
     suspend fun deleteLogsOlderThan(timestamp: Long)
+
+    @Query("DELETE FROM usage_logs")
+    suspend fun clearAllLogs()
     
     @Query("SELECT packageName, SUM(durationMillis) as totalTime FROM usage_logs WHERE startTime >= :startTime GROUP BY packageName ORDER BY totalTime DESC LIMIT :limit")
     suspend fun getMostUsedApps(startTime: Long, limit: Int = 10): List<AppUsageSummary>

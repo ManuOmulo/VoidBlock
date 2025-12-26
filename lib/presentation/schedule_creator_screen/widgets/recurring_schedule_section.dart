@@ -95,10 +95,22 @@ class RecurringScheduleSection extends StatelessWidget {
                               size: 16,
                             ),
                             SizedBox(width: 2.w),
-                            Text(pattern['label'] as String),
+                            Text(
+                              pattern['label'] as String,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: isSelected
+                                    ? theme.colorScheme.onPrimary
+                                    : theme.colorScheme.onSurface,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
                           ],
                         ),
                         selected: isSelected,
+                        selectedColor: theme.colorScheme.primary,
+                        backgroundColor: theme.colorScheme.surface,
                         onSelected: (_) =>
                             onPatternChanged(pattern['value'] as String),
                       );

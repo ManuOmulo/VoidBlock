@@ -37,9 +37,10 @@ class WeeklyBarChart extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Focus Records',
+                'Time Saved (7 Days)',
                 style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
                 ),
               ),
               Container(
@@ -51,9 +52,10 @@ class WeeklyBarChart extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  'Weekly',
+                  'Minutes Recovered',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -73,7 +75,7 @@ class WeeklyBarChart extends StatelessWidget {
                     tooltipRoundedRadius: 8,
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(
-                        '${rod.toY.round()}m',
+                        _formatDuration(rod.toY.round()),
                         TextStyle(
                           color: theme.colorScheme.onInverseSurface,
                           fontWeight: FontWeight.bold,
@@ -166,8 +168,12 @@ class WeeklyBarChart extends StatelessWidget {
 
   List<DateTime> _getLast7Days() {
     final now = DateTime.now();
+    // Calculate the most recent Sunday (start of current week)
+    final sundayOffset = now.weekday % 7;
+    final sunday = now.subtract(Duration(days: sundayOffset));
+
     return List.generate(7, (index) {
-      return now.subtract(Duration(days: 6 - index));
+      return sunday.add(Duration(days: index));
     });
   }
 
@@ -183,5 +189,14 @@ class WeeklyBarChart extends StatelessWidget {
 
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _formatDuration(int minutes) {
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    if (hours > 0) {
+      return '${hours}h ${mins}m';
+    }
+    return '${mins}m';
   }
 }
