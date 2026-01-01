@@ -1,112 +1,216 @@
-# Flutter
+# FocusGuard
 
-A modern Flutter-based mobile application utilizing the latest mobile development technologies and tools for building responsive cross-platform applications.
+A powerful Android productivity app built with Flutter that helps you stay focused by blocking distracting apps. Features manual blocking, scheduled sessions, app usage limits, and multiple strict mode levels for enforced focus.
+
+## ✨ Features
+
+### 🔒 Manual Blocking
+
+Start instant focus sessions with customizable duration and app selection.
+
+### ⚡ Instant Focus
+
+One-tap Pomodoro sessions (25 min) blocking your top 5 most-used apps.
+
+### 📅 Scheduled Blocking
+
+Create recurring schedules to automatically block apps during work hours, study time, or sleep.
+
+### ⏱️ App Limits
+
+Set daily usage limits for individual apps or groups. Get blocked when you exceed your limit.
+
+### 🛡️ Strict Mode Levels
+
+| Level  | Unlock Method                  |
+| ------ | ------------------------------ |
+| NONE   | Stop anytime                   |
+| EASY   | PIN required                   |
+| MEDIUM | Wait through cooldown period   |
+| HARD   | Cannot stop until session ends |
+
+### 📊 Analytics & Insights
+
+Track your usage patterns, productivity scores, and get personalized recommendations.
+
+---
 
 ## 📋 Prerequisites
 
 - Flutter SDK (^3.29.2)
 - Dart SDK
 - Android Studio / VS Code with Flutter extensions
-- Android SDK / Xcode (for iOS development)
+- Android SDK (minSdk 26, targetSdk 35)
 
 ## 🛠️ Installation
 
-1. Install dependencies:
 ```bash
+# Install dependencies
 flutter pub get
-```
 
-2. Run the application:
-```bash
+# Run the application
 flutter run
 ```
+
+---
 
 ## 📁 Project Structure
 
 ```
-flutter_app/
-├── android/            # Android-specific configuration
-├── ios/                # iOS-specific configuration
-├── lib/
-│   ├── core/           # Core utilities and services
-│   │   └── utils/      # Utility classes
-│   ├── presentation/   # UI screens and widgets
-│   │   └── splash_screen/ # Splash screen implementation
-│   ├── routes/         # Application routing
-│   ├── theme/          # Theme configuration
-│   ├── widgets/        # Reusable UI components
-│   └── main.dart       # Application entry point
-├── assets/             # Static assets (images, fonts, etc.)
-├── pubspec.yaml        # Project dependencies and configuration
-└── README.md           # Project documentation
+FocusGuard/
+├── lib/                          # Flutter source code
+│   ├── core/                     # Core utilities and exports
+│   ├── presentation/             # UI screens and widgets
+│   │   ├── dashboard_screen/     # Main hub with stats & quick actions
+│   │   ├── manual_blocking_screen/  # Start instant blocking
+│   │   ├── schedule_creator_screen/ # Create blocking schedules
+│   │   ├── schedule_management_screen/ # Manage schedules
+│   │   ├── app_limits/           # Set usage limits
+│   │   ├── insights_screen/      # Analytics & reports
+│   │   ├── strict_mode_lock_screen/  # Unlock screen during strict mode
+│   │   └── settings_screen/      # App configuration
+│   ├── services/                 # Business logic & native bridge
+│   │   ├── blocking_service.dart   # Start/stop blocking sessions
+│   │   ├── schedule_service.dart   # Schedule CRUD operations
+│   │   ├── app_limit_service.dart  # Limit management & usage
+│   │   ├── strict_mode_service.dart # Strict mode unlock flows
+│   │   ├── analytics_service.dart  # Usage stats & insights
+│   │   └── permission_service.dart # Android permissions
+│   ├── routes/                   # App navigation
+│   ├── theme/                    # Light/dark theme configuration
+│   ├── widgets/                  # Reusable UI components
+│   └── main.dart                 # Application entry point
+│
+├── android/app/src/main/kotlin/com/focusguard/app/  # Native Android
+│   ├── channels/                 # MethodChannel implementations
+│   │   ├── BlockingChannel.kt    # Session management
+│   │   ├── ScheduleChannel.kt    # Schedule operations
+│   │   ├── AppLimitChannel.kt    # Limit management
+│   │   ├── StrictModeChannel.kt  # Unlock enforcement
+│   │   └── AnalyticsChannel.kt   # Usage data
+│   ├── services/
+│   │   └── BlockingService.kt    # Foreground monitoring service
+│   ├── data/database/            # Room database (DAOs, Entities)
+│   ├── utils/                    # Native utilities
+│   │   ├── StrictModeManager.kt  # Strict mode enforcement
+│   │   ├── ScheduleManager.kt    # Schedule activation logic
+│   │   └── ProductivityCalculator.kt # Score calculations
+│   ├── activities/
+│   │   └── BlockingOverlayActivity.kt # Shown when blocked app opened
+│   └── receivers/                # Alarm & boot receivers
+│
+├── test/                         # Test suite
+│   ├── models/                   # Model unit tests
+│   ├── services/                 # Service unit tests (mocked channels)
+│   └── integration/              # End-to-end flow tests
+│
+└── .agent/workflows/             # AI assistant workflows
+    └── implement-feature.md      # Safe feature implementation guide
 ```
 
-## 🧩 Adding Routes
+---
 
-To add new routes to the application, update the `lib/routes/app_routes.dart` file:
+## 🧪 Testing
 
-```dart
-import 'package:flutter/material.dart';
-import 'package:package_name/presentation/home_screen/home_screen.dart';
-
-class AppRoutes {
-  static const String initial = '/';
-  static const String home = '/home';
-
-  static Map<String, WidgetBuilder> routes = {
-    initial: (context) => const SplashScreen(),
-    home: (context) => const HomeScreen(),
-    // Add more routes as needed
-  }
-}
-```
-
-## 🎨 Theming
-
-This project includes a comprehensive theming system with both light and dark themes:
-
-```dart
-// Access the current theme
-ThemeData theme = Theme.of(context);
-
-// Use theme colors
-Color primaryColor = theme.colorScheme.primary;
-```
-
-The theme configuration includes:
-- Color schemes for light and dark modes
-- Typography styles
-- Button themes
-- Input decoration themes
-- Card and dialog themes
-
-## 📱 Responsive Design
-
-The app is built with responsive design using the Sizer package:
-
-```dart
-// Example of responsive sizing
-Container(
-  width: 50.w, // 50% of screen width
-  height: 20.h, // 20% of screen height
-  child: Text('Responsive Container'),
-)
-```
-## 📦 Deployment
-
-Build the application for production:
+### Run All Flutter Tests
 
 ```bash
-# For Android
-flutter build apk --release
-
-# For iOS
-flutter build ios --release
+flutter test
 ```
 
-## 🙏 Acknowledgments
-- Built with [Rocket.new](https://rocket.new)
-- Powered by [Flutter](https://flutter.dev) & [Dart](https://dart.dev)
-- Styled with Material Design
+### Run Model & Service Tests Only
 
-Built with ❤️ on Rocket.new
+```bash
+flutter test test/models/ test/services/
+```
+
+### Run Integration Tests
+
+```bash
+flutter test test/integration/
+```
+
+### Run Native Kotlin Tests
+
+```bash
+cd android && ./gradlew test
+```
+
+### Test Coverage Summary
+
+| Category            | Files | Tests | Coverage                                                             |
+| ------------------- | ----- | ----- | -------------------------------------------------------------------- |
+| **Models**          | 2     | 33    | Schedule, AppLimit serialization                                     |
+| **Services**        | 4     | 73    | BlockingService, ScheduleService, AppLimitService, StrictModeService |
+| **Integration**     | 4     | 59    | Blocking flows, schedules, limits, Instant Focus                     |
+| **Native (Kotlin)** | 3     | 47    | StrictModeManager, ScheduleManager, ProductivityCalculator           |
+
+---
+
+## 🔐 Required Permissions
+
+| Permission               | Purpose                                |
+| ------------------------ | -------------------------------------- |
+| `USAGE_STATS`            | Track app usage times                  |
+| `OVERLAY`                | Show blocking screen over other apps   |
+| `FOREGROUND_SERVICE`     | Monitor apps in background             |
+| `POST_NOTIFICATIONS`     | Show session notifications             |
+| `SCHEDULE_EXACT_ALARM`   | Trigger scheduled blocks reliably      |
+| `RECEIVE_BOOT_COMPLETED` | Resume monitoring after device restart |
+
+---
+
+## 📱 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Flutter UI Layer                        │
+│  (Screens, Widgets, State Management)                       │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Flutter Services                          │
+│  (BlockingService, ScheduleService, AppLimitService, etc.)  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                    MethodChannel Bridge
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  Native Android (Kotlin)                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │  Channels   │  │   Utils     │  │  Foreground Service │  │
+│  │ (API layer) │  │ (Managers)  │  │    (Monitoring)     │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│                              │                               │
+│                              ▼                               │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │              Room Database (SQLite)                      ││
+│  │  Sessions | Schedules | Limits | UsageLogs | BlockedApps ││
+│  └─────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📦 Build
+
+```bash
+# Debug APK
+flutter build apk --debug
+
+# Release APK
+flutter build apk --release
+
+# App Bundle (for Play Store)
+flutter build appbundle --release
+```
+
+---
+
+## 🙏 Acknowledgments
+
+- Built with [Flutter](https://flutter.dev) & [Dart](https://dart.dev)
+- Native Android powered by Kotlin & Room Database
+- Styled with Material Design 3
