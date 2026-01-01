@@ -20,9 +20,15 @@ class BlockingOverlayActivity : AppCompatActivity() {
     
     private var blockedPackage: String? = null
     private var blockedAppName: String? = null
-    
+
+    override fun attachBaseContext(newBase: android.content.Context?) {
+        super.attachBaseContext(newBase)
+        android.util.Log.d("BlockingOverlay", "attachBaseContext called")
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        android.util.Log.d("BlockingOverlay", "onCreate called")
         
         // Make activity appear over other apps
         setupWindowFlags()
@@ -30,9 +36,36 @@ class BlockingOverlayActivity : AppCompatActivity() {
         // Get blocked app info
         blockedPackage = intent.getStringExtra("blocked_package")
         blockedAppName = intent.getStringExtra("blocked_app_name") ?: blockedPackage
+        android.util.Log.d("BlockingOverlay", "Blocking app: $blockedPackage ($blockedAppName)")
         
         // Create and set simple layout
         createBlockingLayout()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        android.util.Log.d("BlockingOverlay", "onStart called")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        android.util.Log.d("BlockingOverlay", "onResume called")
+    }
+
+    override fun onPause() {
+        super.onPause()
+        android.util.Log.d("BlockingOverlay", "onPause called")
+        // REMOVED finish() to prevent immediate closing by system/launcher transitions
+    }
+
+    override fun onStop() {
+        super.onStop()
+        android.util.Log.d("BlockingOverlay", "onStop called")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        android.util.Log.d("BlockingOverlay", "onDestroy called")
     }
     
     /**
@@ -93,9 +126,9 @@ class BlockingOverlayActivity : AppCompatActivity() {
         navigateToHome()
     }
     
-    override fun onPause() {
-        super.onPause()
-        // Close activity when user navigates away
-        finish()
-    }
+    // override fun onPause() {
+    //     super.onPause()
+    //     // Close activity when user navigates away
+    //     finish()
+    // }
 }

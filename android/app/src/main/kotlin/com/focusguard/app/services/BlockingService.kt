@@ -14,6 +14,12 @@ import com.focusguard.app.utils.NotificationHelper
 import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
+import android.view.WindowManager
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.TextView
+import android.widget.Button
+import com.focusguard.app.R
 
 /**
  * Foreground service that monitors app usage and blocks access to specified apps
@@ -24,6 +30,8 @@ class BlockingService : Service() {
     private lateinit var usageStatsManager: UsageStatsManager
     private lateinit var blockedAppDao: BlockedAppDao
     private lateinit var appLimitDao: com.focusguard.app.data.database.dao.AppLimitDao
+    private lateinit var blockingSessionDao: com.focusguard.app.data.database.dao.BlockingSessionDao
+    private lateinit var sessionBlockedAppDao: com.focusguard.app.data.database.dao.SessionBlockedAppDao
     private lateinit var notificationHelper: NotificationHelper
     
     private var monitoringJob: Job? = null
@@ -40,6 +48,13 @@ class BlockingService : Service() {
     private var currentSessionStartTime: Long = 0L
     
     private var lastDayOfMonth = java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_YEAR)
+    
+    private var lastOverlayTime = 0L
+    private var lastOverlayPackage: String? = null
+    
+    // WindowManager for overlay
+    private val windowManager by lazy { getSystemService(Context.WINDOW_SERVICE) as WindowManager }
+    private var currentOverlayView: View? = null
     
     companion object {
         private const val CHECK_INTERVAL_MS = 500L // Check every 500ms
@@ -62,6 +77,8 @@ class BlockingService : Service() {
         val database = AppDatabase.getInstance(applicationContext)
         blockedAppDao = database.blockedAppDao()
         appLimitDao = database.appLimitDao()
+        blockingSessionDao = database.blockingSessionDao()
+        sessionBlockedAppDao = database.sessionBlockedAppDao()
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -96,6 +113,7 @@ class BlockingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     
     override fun onDestroy() {
+        removeOverlay()
         super.onDestroy()
         stopMonitoring()
         scope.cancel()
@@ -178,6 +196,26 @@ class BlockingService : Service() {
                 scheduleBlockedPackages.clear()
                 scheduleBlockedPackages.addAll(activeBlockedApps)
                 
+                // Restore manual session if exists
+                val activeSession = blockingSessionDao.getActiveSession()
+                if (activeSession != null && activeSession.isActive && !activeSession.isPaused) {
+                    val sessionApps = sessionBlockedAppDao.getPackageNamesForSession(activeSession.id)
+                    manualBlockedPackages.clear()
+                    manualBlockedPackages.addAll(sessionApps)
+                    android.util.Log.d("BlockingService", "Restored ${sessionApps.size} manual blocked apps from DB")
+                } else {
+                    // Only clear if we are sure there is no active session (or it is paused)
+                    // But wait, if we are just updating, we should probably reflect the DB state.
+                    // If DB says no active session, then manualBlockedPackages should be empty for consistency.
+                    // However, startBlocking() adds to this list.
+                    // If we blindly clear it here, we might interfere if updateBlockedApps() is called concurrently with startBlocking?
+                    // But updateBlockedApps is called on start/restart.
+                    // Let's rely on DB as source of truth.
+                    if (manualBlockedPackages.isNotEmpty() && (activeSession == null || !activeSession.isActive)) {
+                         manualBlockedPackages.clear()
+                    }
+                }
+                
                 // Check if there are any active limits (even if not exceeded yet)
                 val activeLimits = appLimitDao.getActiveLimits()
                 
@@ -207,6 +245,7 @@ class BlockingService : Service() {
         blockedPackages.addAll(manualBlockedPackages)
         blockedPackages.addAll(scheduleBlockedPackages)
         blockedPackages.addAll(limitBlockedPackages)
+        android.util.Log.d("BlockingService", "Total blocked packages: ${blockedPackages.size}. Manual: ${manualBlockedPackages.size}, Schedule: ${scheduleBlockedPackages.size}, Limits: ${limitBlockedPackages.size}")
     }
     
     /**
@@ -257,11 +296,22 @@ class BlockingService : Service() {
                     if (limit.unlockedUntilMidnight) continue
                     
                     val pgs = appLimitDao.getPackageNamesForLimit(limit.id)
-                    // Get pinpoint accurate usage using events
-                    val totalUsageMillis = getAccurateUsageToday(pgs.toSet())
                     
+                    // Method 1: Aggregate UsageStats (usually more reliable for total time)
+                    var aggregateUsageMillis = 0L
+                    for (pkg in pgs) {
+                        aggregateUsageMillis += stats[pkg]?.totalTimeInForeground ?: 0L
+                    }
+                    
+                    // Method 2: Manual Event Tracking (more real-time but can miss boundaries)
+                    val eventUsageMillis = getAccurateUsageToday(pgs.toSet())
+                    
+                    // Use the higher value to be safe, but prioritize aggregate stats as baseline
+                    val totalUsageMillis = maxOf(aggregateUsageMillis, eventUsageMillis)
                     val totalUsageMinutes = totalUsageMillis / (60 * 1000)
+                    
                     if (totalUsageMinutes >= limit.limitMinutes) {
+                        android.util.Log.d("BlockingService", "LIMIT EXCEEDED for limit ID=${limit.id}")
                         newLimitBlocked.addAll(pgs)
                     }
                 }
@@ -365,24 +415,52 @@ class BlockingService : Service() {
      */
     private suspend fun checkForegroundApp() {
         val foregroundPackage = getForegroundApp()
+        val now = System.currentTimeMillis()
+        
+        // Log detected app periodically (every ~5s) to avoid spam but ensure visibility
+        if (now % 5000 < 600) { // Approximate check
+             android.util.Log.d("BlockingService", "Monitoring... Current foreground: $foregroundPackage. Blocked list size: ${blockedPackages.size}")
+             if (blockedPackages.isNotEmpty()) {
+                 android.util.Log.v("BlockingService", "Blocked packages: $blockedPackages")
+             }
+        }
         
         // Track session changes
-        if (foregroundPackage != currentForegroundPackage) {
+        if (foregroundPackage != null && foregroundPackage != currentForegroundPackage) {
             currentForegroundPackage = foregroundPackage
-            currentSessionStartTime = System.currentTimeMillis()
-            // android.util.Log.d("BlockingService", "Foreground app changed to: $foregroundPackage")
+            currentSessionStartTime = now
+            android.util.Log.d("BlockingService", "Foreground transition -> $foregroundPackage")
         }
         
         if (foregroundPackage != null && blockedPackages.contains(foregroundPackage)) {
+            // Check if it's the FocusGuard app itself or our overlay - DON'T block those
+            if (foregroundPackage == packageName || foregroundPackage.contains("com.focusguard.app")) {
+                removeOverlay()
+                return
+            }
+
+            // Cooldown to prevent "machine gun" launches of the overlay
+            // If we launched an overlay for THIS package in the last 2 seconds, skip
+            if (foregroundPackage == lastOverlayPackage && now - lastOverlayTime < 2000) {
+                return
+            }
+
             android.util.Log.d("BlockingService", "BLOCKED APP DETECTED: $foregroundPackage - showing overlay")
+            
+            lastOverlayTime = now
+            lastOverlayPackage = foregroundPackage
+            
             // Log the blocked attempt
             logBlockedAttempt(foregroundPackage)
             
             // Blocked app detected - show blocking overlay
             showBlockingOverlay(foregroundPackage)
+        } else {
+            // App is not blocked, ensure overlay is removed
+            removeOverlay()
         }
     }
-    
+
     /**
      * Log blocked app access attempt to database
      */
@@ -407,38 +485,133 @@ class BlockingService : Service() {
      */
     private fun getForegroundApp(): String? {
         val currentTime = System.currentTimeMillis()
-        val events = usageStatsManager.queryEvents(currentTime - 5000, currentTime)
+        
+        // 1. Try granular Events first (wide window)
+        val events = usageStatsManager.queryEvents(currentTime - 30000, currentTime)
         val event = UsageEvents.Event()
-        var lastPackage: String? = null
+        var lastEventPackage: String? = null
+        var lastEventTime = 0L
         
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
-                lastPackage = event.packageName
+                lastEventPackage = event.packageName
+                lastEventTime = event.timeStamp
             }
         }
         
-        return lastPackage ?: currentForegroundPackage
+        // 2. Fallback: queryUsageStats for apps that were already open
+        val stats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_DAILY, 
+            currentTime - 1000 * 120, // Last 2 minutes
+            currentTime
+        )
+        
+        if (stats != null && stats.isNotEmpty()) {
+            var mostRecentApp: android.app.usage.UsageStats? = null
+            for (usageStats in stats) {
+                // Skip our own app to find the actual foreground app we might need to block
+                if (usageStats.packageName == packageName) continue
+
+                if (mostRecentApp == null || usageStats.lastTimeUsed > mostRecentApp.lastTimeUsed) {
+                    mostRecentApp = usageStats
+                }
+            }
+            
+            // If usage stats show something more recent than the last event, trust it
+            if (mostRecentApp != null && (lastEventPackage == null || mostRecentApp.lastTimeUsed > lastEventTime)) {
+                return mostRecentApp.packageName
+            }
+        }
+        
+        // 3. Final fallback: Return last event package if we had one, else current state
+        return lastEventPackage ?: currentForegroundPackage
     }
     
     /**
-     * Show blocking overlay activity
+     * Show blocking overlay using WindowManager
      */
     private fun showBlockingOverlay(packageName: String) {
-        val intent = Intent(this, Class.forName("com.focusguard.app.activities.BlockingOverlayActivity")).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            putExtra("blocked_package", packageName)
-            putExtra("blocked_app_name", getAppName(packageName))
-            putExtra("quote", MotivationalQuotes.getRandomQuote())
+        // Enforce overlay permission check
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && 
+            !android.provider.Settings.canDrawOverlays(this)) {
+            android.util.Log.w("BlockingService", "Missing SYSTEM_ALERT_WINDOW permission. Cannot show overlay.")
+            return
         }
-        
+
+        scope.launch(Dispatchers.Main) {
+            try {
+                // If the same package is already handled, don't re-add
+                if (currentOverlayView != null && lastOverlayPackage == packageName) {
+                    return@launch
+                }
+
+                removeOverlay() // Clear existing if any
+
+                val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+                val overlayView = inflater.inflate(R.layout.activity_blocking_overlay, null)
+                
+                // Set app info
+                val appName = getAppName(packageName)
+                overlayView.findViewById<TextView>(R.id.app_name_text).text = "$appName is blocked"
+                overlayView.findViewById<TextView>(R.id.message_text).text = MotivationalQuotes.getRandomQuote()
+                
+                // Set up button
+                overlayView.findViewById<Button>(R.id.close_button).setOnClickListener {
+                    navigateToHomeInternal()
+                    removeOverlay()
+                }
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                    else
+                        @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or 
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                    android.graphics.PixelFormat.TRANSLUCENT
+                )
+
+                windowManager.addView(overlayView, params)
+                currentOverlayView = overlayView
+                lastOverlayPackage = packageName
+                lastOverlayTime = System.currentTimeMillis()
+                
+                android.util.Log.d("BlockingService", "WindowManager overlay added for $packageName")
+            } catch (e: Exception) {
+                android.util.Log.e("BlockingService", "Error showing WindowManager overlay", e)
+            }
+        }
+    }
+
+    /**
+     * Remove the current overlay if it exists
+     */
+    private fun removeOverlay() {
         try {
-            startActivity(intent)
+            currentOverlayView?.let {
+                windowManager.removeView(it)
+                currentOverlayView = null
+                lastOverlayPackage = null
+                android.util.Log.d("BlockingService", "WindowManager overlay removed")
+            }
         } catch (e: Exception) {
-            e.printStackTrace()
-            // Fallback: navigate to home screen
-            navigateToHome()
+            android.util.Log.e("BlockingService", "Error removing overlay", e)
         }
+    }
+
+    /**
+     * Navigate to home screen
+     */
+    private fun navigateToHomeInternal() {
+        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_HOME)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        startActivity(homeIntent)
     }
     
     /**
@@ -453,16 +626,6 @@ class BlockingService : Service() {
         }
     }
     
-    /**
-     * Navigate to home screen (fallback when overlay fails)
-     */
-    private fun navigateToHome() {
-        val homeIntent = Intent(Intent.ACTION_MAIN).apply {
-            addCategory(Intent.CATEGORY_HOME)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        startActivity(homeIntent)
-    }
     
     /**
      * Update existing notification
