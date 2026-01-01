@@ -131,20 +131,24 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
                 ))
               : _blockedApps.isEmpty
                   ? _buildEmptyState(theme)
-                  : SizedBox(
-                      height: 70,
-                      child: ListView.builder(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _blockedApps.length,
-                        itemBuilder: (context, index) {
-                          return _buildBlockedAppChip(
-                            context,
-                            theme,
-                            _blockedApps[index],
-                          );
-                        },
+                  : GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 2.3,
                       ),
+                      itemCount: _blockedApps.length,
+                      itemBuilder: (context, index) {
+                        return _buildBlockedAppChip(
+                          context,
+                          theme,
+                          _blockedApps[index],
+                        );
+                      },
                     ),
         ],
       ),
@@ -194,8 +198,7 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
     final remaining = app["remainingMinutes"];
 
     return Container(
-      margin: EdgeInsets.only(right: 12),
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -211,42 +214,43 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
         ],
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
           _buildAppIcon(app, theme),
           SizedBox(width: 10),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                app["name"],
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  app["name"],
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Row(
-                children: [
-                  Icon(
-                    Icons.access_time_filled_rounded,
-                    size: 10,
-                    color: theme.colorScheme.primary,
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    '${remaining}m left',
-                    style: theme.textTheme.labelSmall?.copyWith(
+                Row(
+                  children: [
+                    Icon(
+                      Icons.access_time_filled_rounded,
+                      size: 10,
                       color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 10,
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    SizedBox(width: 4),
+                    Text(
+                      '${remaining}m left',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
           if (app["isStrictMode"]) ...[
             SizedBox(width: 8),
