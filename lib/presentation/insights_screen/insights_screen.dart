@@ -29,6 +29,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     // Fetch all necessary data in parallel
     final dailyStatsList = await _analyticsService.getDailyStats(days: 30);
     final usageStats = await _analyticsService.getMostUsedApps(limit: 5);
+    final insights = await _analyticsService.getInsights(days: 7);
 
     // Convert List<Map> to Map<DateString, Minutes> for easier chart consumption
     final Map<String, dynamic> dailyStatsMap = {};
@@ -44,6 +45,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     return {
       'dailyStats': dailyStatsMap,
       'usageStats': usageStats,
+      'insights': insights,
     };
   }
 
@@ -76,6 +78,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
             final usageStats =
                 (data['usageStats'] as List?)?.cast<Map<String, dynamic>>() ??
                     [];
+            final insights =
+                (data['insights'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -91,8 +95,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   ProductivityTrendChart(dailyStats: dailyStats),
                   const SizedBox(height: 16),
                   RecommendationsWidget(
-                    dailyStats: dailyStats,
-                    usageStats: usageStats,
+                    insights: insights,
                   ),
                   const SizedBox(height: 24),
                 ],

@@ -303,7 +303,7 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     
                     val score = productivityCalculator.calculateProductivityScore(blockedCount, totalBlockedTime, totalUsageTime, days)
                     
-                    insightsGenerator.generateInsights(dailySummary, appBreakdown, score)
+                    insightsGenerator.generateInsights(dailySummary, appBreakdown, logs, score)
                 }
                 
                 val insightsList = insights.map { insight ->

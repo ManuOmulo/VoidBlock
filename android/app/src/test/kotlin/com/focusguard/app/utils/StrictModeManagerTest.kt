@@ -58,10 +58,10 @@ class StrictModeManagerTest {
     fun `UnlockAttemptResult success creates correct result`() {
         val result = StrictModeManager.UnlockAttemptResult(
             success = true,
-            reason = null
+            reason = ""
         )
         assertTrue(result.success)
-        assertNull(result.reason)
+        assertEquals("", result.reason)
     }
 
     @Test
@@ -144,7 +144,7 @@ class StrictModeManagerTest {
         val cooldownMinutes = 15
         val startTime = System.currentTimeMillis()
         val fiveMinutesAgo = startTime - (5 * 60 * 1000)
-        
+
         val elapsedMs = startTime - fiveMinutesAgo
         val elapsedMinutes = elapsedMs / (60 * 1000)
         val remainingMinutes = cooldownMinutes - elapsedMinutes

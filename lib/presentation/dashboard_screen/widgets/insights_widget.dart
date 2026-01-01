@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../services/analytics_service.dart';
+import '../../../routes/app_routes.dart';
 
 /// Widget to display personalized insights
 class InsightsWidget extends StatefulWidget {
@@ -145,10 +146,37 @@ class InsightsWidgetState extends State<InsightsWidget> {
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),
+                  if (insight['actionType'] != null) ...[
+                    SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                          backgroundColor:
+                              theme.colorScheme.surface.withValues(alpha: 0.5),
+                        ),
+                        onPressed: () {
+                          final route = _getActionRoute(
+                            insight['actionType'] as String?,
+                          );
+                          if (route != null) {
+                            Navigator.pushNamed(context, route);
+                          }
+                        },
+                        child: Text(
+                          _getActionLabel(insight['actionType'] as String?),
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
-            if (insight['value'] != null)
+            if (insight['value'] != null && insight['actionType'] == null)
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
@@ -166,5 +194,31 @@ class InsightsWidgetState extends State<InsightsWidget> {
         ),
       ),
     );
+  }
+
+  String? _getActionRoute(String? actionType) {
+    switch (actionType) {
+      case 'CREATE_LIMIT':
+        return AppRoutes.appLimits;
+      case 'CREATE_SCHEDULE':
+        return AppRoutes.scheduleCreator;
+      case 'SETTINGS':
+        return AppRoutes.settings;
+      default:
+        return null;
+    }
+  }
+
+  String _getActionLabel(String? actionType) {
+    switch (actionType) {
+      case 'CREATE_LIMIT':
+        return 'Limit';
+      case 'CREATE_SCHEDULE':
+        return 'Schedule';
+      case 'SETTINGS':
+        return 'Settings';
+      default:
+        return 'Action';
+    }
   }
 }
