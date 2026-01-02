@@ -1,15 +1,24 @@
 package com.voidblock.app
 
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import com.voidblock.app.channels.*
+import android.os.Bundle
 
 /**
  * Main activity for VoidBlock
  * Registers platform channels for Flutter-Kotlin communication
  */
 class MainActivity: FlutterFragmentActivity() {
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // Handle the splash screen transition.
+        installSplashScreen()
+        
+        super.onCreate(savedInstanceState)
+    }
     
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

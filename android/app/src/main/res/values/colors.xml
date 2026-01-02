@@ -15,4 +15,5 @@
     <color name="overlay_text_secondary">#4B5563</color>
     <color name="overlay_primary">#2563EB</color>
     <color name="overlay_on_primary">#FFFFFF</color>
+	<color name="ic_launcher_background">#000000</color>
 </resources>
