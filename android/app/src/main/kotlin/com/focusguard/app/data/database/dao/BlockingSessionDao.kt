@@ -24,8 +24,8 @@ interface BlockingSessionDao {
     @Update
     suspend fun updateSession(session: BlockingSessionEntity)
     
-    @Query("UPDATE blocking_sessions SET isPaused = :isPaused, pausedAt = :pausedAt, remainingMinutes = :remaining WHERE id = :id")
-    suspend fun updatePauseStatus(id: Long, isPaused: Boolean, pausedAt: Long?, remaining: Int?)
+    @Query("UPDATE blocking_sessions SET isPaused = :isPaused, pausedAt = :pausedAt, accumulatedPausedMs = :accumulated, remainingMinutes = :remaining WHERE id = :id")
+    suspend fun updatePauseStatus(id: Long, isPaused: Boolean, pausedAt: Long?, accumulated: Long, remaining: Int?)
     
     @Query("SELECT * FROM blocking_sessions ORDER BY startTime DESC LIMIT :limit")
     suspend fun getRecentSessions(limit: Int = 10): List<BlockingSessionEntity>

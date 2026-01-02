@@ -15,9 +15,9 @@ class DailyStatsWidget extends StatefulWidget {
 class DailyStatsWidgetState extends State<DailyStatsWidget> {
   final AnalyticsService _analyticsService = AnalyticsService();
 
-  String _timeSaved = '0m';
+  String _focusTime = '0m';
   int _blockedTries = 0;
-  String _weeklyTimeSaved = '0m';
+  String _weeklyFocusTime = '0m';
   int _weeklyBlockedTries = 0;
   double _productivityScore = 0.0;
   bool _isLoading = true;
@@ -56,13 +56,13 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
       if (mounted) {
         setState(() {
           // Daily
-          final dailyBlockedMs = (dailyStats['blockedTime'] as int?) ?? 0;
-          _timeSaved = _formatDuration(dailyBlockedMs);
+          final dailyFocusMs = (dailyStats['totalFocusTime'] as int?) ?? 0;
+          _focusTime = _formatDuration(dailyFocusMs);
           _blockedTries = (dailyStats['blockedCount'] as int?) ?? 0;
 
           // Weekly
-          final weeklyBlockedMs = (weeklyStats['blockedTime'] as int?) ?? 0;
-          _weeklyTimeSaved = _formatDuration(weeklyBlockedMs);
+          final weeklyFocusMs = (weeklyStats['totalFocusTime'] as int?) ?? 0;
+          _weeklyFocusTime = _formatDuration(weeklyFocusMs);
           _weeklyBlockedTries = (weeklyStats['blockedCount'] as int?) ?? 0;
 
           _productivityScore = score;
@@ -144,8 +144,8 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
                               context,
                               theme,
                               icon: 'timer',
-                              label: 'Time Saved',
-                              value: _timeSaved,
+                              label: 'Focus Time',
+                              value: _focusTime,
                               color: theme.colorScheme.primary,
                             ),
                           ),
@@ -178,8 +178,8 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
                               context,
                               theme,
                               icon: 'auto_graph',
-                              label: 'Total Saved',
-                              value: _weeklyTimeSaved,
+                              label: 'Total Focus',
+                              value: _weeklyFocusTime,
                               color: theme.colorScheme.tertiary,
                               isSmall: true,
                             ),

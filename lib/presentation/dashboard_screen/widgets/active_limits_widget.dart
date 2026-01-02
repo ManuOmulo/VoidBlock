@@ -23,7 +23,7 @@ class ActiveLimitsWidgetState extends State<ActiveLimitsWidget> {
   void initState() {
     super.initState();
     _refreshData();
-    _timer = Timer.periodic(const Duration(seconds: 30), (_) => _refreshData());
+    // Removed local timer - redundant with DashboardScreen auto-refresh
   }
 
   @override

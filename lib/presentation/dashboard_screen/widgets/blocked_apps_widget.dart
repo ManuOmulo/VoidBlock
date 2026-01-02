@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -16,12 +17,17 @@ class BlockedAppsWidget extends StatefulWidget {
 
 class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
   List<Map<String, dynamic>> _blockedApps = [];
+  Map<String, dynamic>? _currentSession;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadBlockedApps();
+    // Update every 15 seconds for UI sync (minutes only)
+    Timer.periodic(Duration(seconds: 15), (_) {
+      if (mounted) setState(() {});
+    });
   }
 
   Future<void> _loadBlockedApps() async {
@@ -45,7 +51,7 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
               "name": appInfo.appName,
               "iconBase64": appInfo.iconBase64,
               "package": appInfo.packageName,
-              "remainingMinutes": _calculateRemaining(session['endTime']),
+              "remainingMinutes": _calculateRemainingValue(session),
               "isStrictMode": session['strictMode'] ?? false,
             });
           }
@@ -54,6 +60,7 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
         if (mounted) {
           setState(() {
             _blockedApps = loadedApps;
+            _currentSession = session;
             _isLoading = false;
           });
         }
@@ -71,17 +78,44 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
     }
   }
 
-  int _calculateRemaining(int? endTime) {
-    if (endTime == null) return 0;
-    final remaining = DateTime.fromMillisecondsSinceEpoch(endTime)
-        .difference(DateTime.now())
-        .inMinutes;
-    return remaining > 0 ? remaining : 0;
+  int _calculateRemainingValue(Map<String, dynamic> session) {
+    final String type = session['type'] as String? ?? 'manual';
+    final int now = DateTime.now().millisecondsSinceEpoch;
+
+    if (type == 'schedule') {
+      final int endTime = session['endTime'] as int? ?? 0;
+      final int remainingMs = endTime - now;
+      return remainingMs > 0 ? (remainingMs / (60 * 1000)).floor() : 0;
+    }
+
+    // Manual session logic
+    final int startTime = session['startTime'] as int? ?? 0;
+    final int durationMinutes = session['durationMinutes'] as int? ?? 0;
+    final bool isPaused = session['isPaused'] as bool? ?? false;
+    final int? pausedAt = session['pausedAt'] as int?;
+    final int accumulatedPausedMs = session['accumulatedPausedMs'] as int? ?? 0;
+
+    if (durationMinutes <= 0) return 0;
+
+    final int totalElapsedMs;
+    if (isPaused && pausedAt != null) {
+      totalElapsedMs = pausedAt - startTime - accumulatedPausedMs;
+    } else {
+      totalElapsedMs = now - startTime - accumulatedPausedMs;
+    }
+
+    final int totalDurationMs = durationMinutes * 60 * 1000;
+    final int remainingMs = totalDurationMs - totalElapsedMs;
+
+    return remainingMs > 0 ? (remainingMs / (60 * 1000)).floor() : 0;
   }
 
   /// Public method to refresh blocked apps list
   Future<void> refresh() async {
-    setState(() => _isLoading = true);
+    // Silent refresh - don't show loader if we already have data
+    if (_blockedApps.isEmpty) {
+      setState(() => _isLoading = true);
+    }
     await _loadBlockedApps();
   }
 
@@ -107,18 +141,6 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-                if (_blockedApps.isNotEmpty)
-                  GestureDetector(
-                    onTap: () =>
-                        Navigator.pushNamed(context, '/app-selection-screen'),
-                    child: Text(
-                      'Manage',
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ),
@@ -147,6 +169,7 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
                           context,
                           theme,
                           _blockedApps[index],
+                          _currentSession,
                         );
                       },
                     ),
@@ -194,8 +217,12 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
     BuildContext context,
     ThemeData theme,
     Map<String, dynamic> app,
+    Map<String, dynamic>? fullSession,
   ) {
-    final remaining = app["remainingMinutes"];
+    // Recalculate if possible for smooth ticking
+    final remaining = fullSession != null
+        ? _calculateRemainingValue(fullSession)
+        : app["remainingMinutes"];
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),

@@ -4,6 +4,7 @@ import android.content.Context
 import java.text.SimpleDateFormat
 import java.util.*
 import com.focusguard.app.data.database.AppDatabase
+import com.focusguard.app.data.database.dao.DailyFocusSummary
 import com.focusguard.app.utils.InstalledAppsManager
 import com.focusguard.app.utils.ProductivityCalculator
 import com.focusguard.app.utils.InsightsGenerator
@@ -14,6 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.app.usage.UsageStatsManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStats
 import java.io.File
 
 /**
@@ -103,6 +106,11 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 clearUsageData(result)
             }
             
+            "getPeakUsagePattern" -> {
+                val days = call.argument<Int>("days") ?: 1
+                getPeakUsagePattern(days, result)
+            }
+            
             else -> result.notImplemented()
         }
     }
@@ -159,6 +167,35 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     val blockedCount = database.usageLogDao().getBlockedAttemptsCount(startTime)
                     val uniqueApps = database.usageLogDao().getUniqueBlockedAppsCount(startTime)
                     
+                    val currentTime = System.currentTimeMillis()
+                    
+                    // NEW: Calculate Total Focus Time by merging overlapping intervals
+                    val rawSessions = database.focusSessionDao().getOverlappingSessions(startTime, currentTime)
+                    val intervals = rawSessions.map { 
+                        // Clip intervals to the requested period [startTime, currentTime]
+                        maxOf(startTime, it.startTime) to minOf(currentTime, it.endTime ?: currentTime)
+                    }.filter { it.first < it.second }.sortedBy { it.first }
+                    
+                    var totalFocusTimeMs = 0L
+                    if (intervals.isNotEmpty()) {
+                        var currentStart = intervals[0].first
+                        var currentEnd = intervals[0].second
+                        
+                        for (i in 1 until intervals.size) {
+                            val nextStart = intervals[i].first
+                            val nextEnd = intervals[i].second
+                            
+                            if (nextStart <= currentEnd) {
+                                currentEnd = maxOf(currentEnd, nextEnd)
+                            } else {
+                                totalFocusTimeMs += (currentEnd - currentStart)
+                                currentStart = nextStart
+                                currentEnd = nextEnd
+                            }
+                        }
+                        totalFocusTimeMs += (currentEnd - currentStart)
+                    }
+                    
                     // Improved Time Saved Calculation (Personalized)
                     val thirtyDaysAgo = System.currentTimeMillis() - (30 * 24 * 60 * 60 * 1000L)
                     val historyBreakdown = database.usageLogDao().getAppUsageBreakdown(thirtyDaysAgo)
@@ -184,6 +221,7 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     
                     mapOf(
                         "blockedTime" to estimatedTimeSaved,
+                        "totalFocusTime" to totalFocusTimeMs,
                         "blockedCount" to blockedCount,
                         "uniqueBlockedApps" to uniqueApps,
                         "totalUsageTime" to totalSystemUsageMs,
@@ -301,9 +339,11 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
                     val totalUsageTime = systemStats.values.sumOf { it.totalTimeInForeground }
                     
+                    val focusSessions = database.focusSessionDao().getOverlappingSessions(startTime, System.currentTimeMillis())
+                    
                     val score = productivityCalculator.calculateProductivityScore(blockedCount, totalBlockedTime, totalUsageTime, days)
                     
-                    insightsGenerator.generateInsights(dailySummary, appBreakdown, logs, score)
+                    insightsGenerator.generateInsights(dailySummary, appBreakdown, logs, focusSessions, score)
                 }
                 
                 val insightsList = insights.map { insight ->
@@ -330,16 +370,67 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
     private fun getDailyStats(days: Int, result: MethodChannel.Result) {
         scope.launch {
             try {
-                val startTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+                val currentTime = System.currentTimeMillis()
+                val globalStartTime = currentTime - (days * 24 * 60 * 60 * 1000L)
                 
-                val dailyStats = withContext(Dispatchers.IO) {
-                    database.usageLogDao().getDailyUsageSummary(startTime)
+                val dailyFocusStats: List<DailyFocusSummary> = withContext(Dispatchers.IO) {
+                    val rawSessions = database.focusSessionDao().getOverlappingSessions(globalStartTime, currentTime)
+                    
+                    // 1. Merge overlapping intervals globally first
+                    val globalIntervals = rawSessions.map { 
+                        maxOf(globalStartTime, it.startTime) to minOf(currentTime, it.endTime ?: currentTime)
+                    }.filter { it.first < it.second }.sortedBy { it.first }
+                    
+                    val mergedIntervals = mutableListOf<Pair<Long, Long>>()
+                    if (globalIntervals.isNotEmpty()) {
+                        var currentStart = globalIntervals[0].first
+                        var currentEnd = globalIntervals[0].second
+                        for (i in 1 until globalIntervals.size) {
+                            val nextStart = globalIntervals[i].first
+                            val nextEnd = globalIntervals[i].second
+                            if (nextStart <= currentEnd) {
+                                currentEnd = maxOf(currentEnd, nextEnd)
+                            } else {
+                                mergedIntervals.add(currentStart to currentEnd)
+                                currentStart = nextStart
+                                currentEnd = nextEnd
+                            }
+                        }
+                        mergedIntervals.add(currentStart to currentEnd)
+                    }
+                    
+                    // 2. Fragment merged intervals into days
+                    val dayMap = mutableMapOf<Int, Long>()
+                    mergedIntervals.forEach { (start, end) ->
+                        var s = start
+                        while (s < end) {
+                            val cal = Calendar.getInstance()
+                            cal.timeInMillis = s
+                            cal.set(Calendar.HOUR_OF_DAY, 0)
+                            cal.set(Calendar.MINUTE, 0)
+                            cal.set(Calendar.SECOND, 0)
+                            cal.set(Calendar.MILLISECOND, 0)
+                            val dayStart = cal.timeInMillis
+                            val daySinceEpoch = (dayStart / 86400000).toInt()
+                            
+                            val nextMidnight = dayStart + 86400000
+                            val endOfThisDayFragment = minOf(end, nextMidnight)
+                            
+                            val duration = endOfThisDayFragment - s
+                            dayMap[daySinceEpoch] = (dayMap[daySinceEpoch] ?: 0L) + duration
+                            s = nextMidnight
+                        }
+                    }
+                    
+                    dayMap.map { (day, total) ->
+                        DailyFocusSummary(day, total)
+                    }.sortedByDescending { it.daysSinceEpoch }
                 }
                 
                 val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                 val statsList = mutableListOf<Map<String, Any>>()
                 
-                // Aggregate usage per day using UsageStatsManager
+                // Aggregate focus time per day
                 for (i in 0 until days) {
                     val cal = Calendar.getInstance()
                     cal.add(Calendar.DAY_OF_YEAR, -i)
@@ -348,27 +439,14 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     cal.set(Calendar.SECOND, 0)
                     cal.set(Calendar.MILLISECOND, 0)
                     val dayStart = cal.timeInMillis
+                    val daySinceEpoch = (dayStart / 86400000).toInt()
                     
-                    cal.set(Calendar.HOUR_OF_DAY, 23)
-                    cal.set(Calendar.MINUTE, 59)
-                    cal.set(Calendar.SECOND, 59)
-                    val dayEnd = cal.timeInMillis
-                    
-                    // Calculate Estimated Time Saved for this day
-                    val dayData = withContext(Dispatchers.IO) {
-                        val blockedCountDay = database.usageLogDao().getBlockedAttemptsCountForPeriod(dayStart, dayEnd)
-                        
-                        // Use the same personalized average session length logic or a conservative 5-min default
-                        // To keep it simple and consistent for charts, we use a 5-minute estimate per block here
-                        // but cap the total saved time to 16 hours so it doesn't exceed a waking day.
-                        val minutesSaved = (blockedCountDay * 5L).coerceAtMost(16 * 60L)
-                        Pair(minutesSaved, blockedCountDay)
-                    }
+                    val focusMillis = dailyFocusStats.find { it.daysSinceEpoch == daySinceEpoch }?.totalMillis ?: 0L
                     
                     statsList.add(mapOf(
                         "date" to dateFormat.format(Date(dayStart)),
-                        "totalTime" to dayData.first.toInt(), // This is now "Minutes Saved"
-                        "blockedCount" to dayData.second
+                        "focusMinutes" to (focusMillis / 60000).toInt(),
+                        "totalTime" to (focusMillis / 60000).toInt() // For backward compatibility
                     ))
                 }
                 
@@ -531,6 +609,81 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 e.printStackTrace()
                 result.error("FETCH_ERROR", e.message, null)
             }
+        }
+    }
+
+    /**
+     * Get hourly usage pattern for peak usage heatmap
+     */
+    private fun getPeakUsagePattern(days: Int, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                val cal = Calendar.getInstance()
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                val dayStartTime = cal.timeInMillis
+                val currentTime = System.currentTimeMillis()
+                
+                val pattern = withContext(Dispatchers.IO) {
+                    val hourlyUsage = LongArray(24) { 0L }
+                    
+                    val events = usageStatsManager.queryEvents(dayStartTime, currentTime)
+                    val event = UsageEvents.Event()
+                    val startTimes = mutableMapOf<String, Long>()
+                    
+                    while (events.hasNextEvent()) {
+                        events.getNextEvent(event)
+                        val pkg = event.packageName ?: continue
+                        
+                        when (event.eventType) {
+                            UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                                startTimes[pkg] = event.timeStamp
+                            }
+                            UsageEvents.Event.MOVE_TO_BACKGROUND,
+                            UsageEvents.Event.ACTIVITY_PAUSED,
+                            UsageEvents.Event.ACTIVITY_STOPPED -> {
+                                val startTime = startTimes.remove(pkg)
+                                if (startTime != null && startTime >= dayStartTime) {
+                                    val endTime = event.timeStamp
+                                    addDurationToHours(startTime, endTime, hourlyUsage, dayStartTime)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Handle apps currently in foreground
+                    startTimes.forEach { (pkg, startTime) ->
+                        if (startTime >= dayStartTime) {
+                            addDurationToHours(startTime, currentTime, hourlyUsage, dayStartTime)
+                        }
+                    }
+                    
+                    hourlyUsage.map { (it / 60000).toInt() }
+                }
+                
+                result.success(pattern)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                result.error("PATTERN_ERROR", e.message, null)
+            }
+        }
+    }
+
+    private fun addDurationToHours(start: Long, end: Long, hourlyUsage: LongArray, dayStart: Long) {
+        var s = start
+        val e = end
+        
+        while (s < e) {
+            val hourIndex = ((s - dayStart) / 3600000).toInt()
+            if (hourIndex !in 0..23) break
+            
+            val hourEnd = dayStart + (hourIndex + 1) * 3600000
+            val fragmentEnd = minOf(e, hourEnd)
+            
+            hourlyUsage[hourIndex] += (fragmentEnd - s)
+            s = fragmentEnd
         }
     }
 }

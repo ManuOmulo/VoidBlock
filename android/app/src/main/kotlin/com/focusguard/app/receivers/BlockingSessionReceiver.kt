@@ -47,6 +47,7 @@ class BlockingSessionReceiver : BroadcastReceiver() {
                     // Stop the blocking service
                     val serviceIntent = Intent(context, BlockingService::class.java).apply {
                         action = BlockingService.ACTION_STOP_BLOCKING
+                        putExtra("session_id", sessionId)
                     }
                     context.startService(serviceIntent)
                     

@@ -217,4 +217,17 @@ class AnalyticsService {
       return false;
     }
   }
+
+  /// Get hourly usage pattern for peak usage heatmap
+  Future<List<int>> getPeakUsagePattern({int days = 1}) async {
+    try {
+      final result = await platform.invokeMethod('getPeakUsagePattern', {
+        'days': days,
+      });
+      return List<int>.from(result ?? []);
+    } on PlatformException catch (e) {
+      print('Error getting peak usage pattern: ${e.message}');
+      return List.filled(24, 0);
+    }
+  }
 }

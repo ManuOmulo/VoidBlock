@@ -65,12 +65,15 @@ class InsightsGenerator {
         dailySummary: List<DailyUsageSummary>,
         appBreakdown: List<AppUsageBreakdown>,
         logs: List<UsageLogEntity>,
+        focusSessions: List<com.focusguard.app.data.database.entities.FocusSessionEntity>,
         productivityScore: Double
     ): List<Insight> {
         val recommendations = mutableListOf<Insight>()
         val achievements = mutableListOf<Insight>()
         val warnings = mutableListOf<Insight>()
         val others = mutableListOf<Insight>()
+        
+        val totalBlocks = dailySummary.sumOf { it.blockedCount }
         
         // 0. Usage Spike Detection
         val totalUsageTime = appBreakdown.sumOf { it.totalTime }
@@ -206,15 +209,38 @@ class InsightsGenerator {
             ))
         }
         
-        // 9. Time Saved
-        val totalBlocks = dailySummary.sumOf { it.blockedCount }
-        val totalTimeSaved = (totalBlocks * 5L * 60 * 1000).coerceAtMost(dailySummary.size * 16L * 60 * 60 * 1000)
-        if (totalTimeSaved > 15 * 60 * 1000) {
-            val formattedTime = formatDuration(totalTimeSaved)
+        // 9. Focus Time Achievement (Using Union to avoid double counting)
+        val currentTime = System.currentTimeMillis()
+        val intervals = focusSessions.map { 
+            it.startTime to (it.endTime ?: currentTime)
+        }.sortedBy { it.first }
+        
+        var totalFocusMillis = 0L
+        if (intervals.isNotEmpty()) {
+            var currentStart = intervals[0].first
+            var currentEnd = intervals[0].second
+            
+            for (i in 1 until intervals.size) {
+                val nextStart = intervals[i].first
+                val nextEnd = intervals[i].second
+                
+                if (nextStart <= currentEnd) {
+                    currentEnd = maxOf(currentEnd, nextEnd)
+                } else {
+                    totalFocusMillis += (currentEnd - currentStart)
+                    currentStart = nextStart
+                    currentEnd = nextEnd
+                }
+            }
+            totalFocusMillis += (currentEnd - currentStart)
+        }
+
+        if (totalFocusMillis > 15 * 60 * 1000) {
+            val formattedTime = formatDuration(totalFocusMillis)
             achievements.add(Insight(
-                type = "ACHIEVEMENT",
-                title = "Time Reclaimed",
-                message = "You've successfully reclaimed $formattedTime from distractions this week!",
+                type = "TREND",
+                title = "Focus Milestone",
+                message = "You've dedicated $formattedTime to deep work this week. Remarkable!",
                 value = formattedTime,
                 severity = "POSITIVE"
             ))

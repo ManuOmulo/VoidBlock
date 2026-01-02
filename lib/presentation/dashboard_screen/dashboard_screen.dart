@@ -14,6 +14,7 @@ import './widgets/daily_stats_widget.dart';
 import './widgets/greeting_header_widget.dart';
 import './widgets/insights_widget.dart';
 import './widgets/active_limits_widget.dart';
+import './widgets/peak_usage_heatmap.dart';
 
 import '../../services/permission_service.dart';
 import '../../services/analytics_service.dart';
@@ -75,8 +76,8 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _startAutoRefresh() {
     _stopAutoRefresh(); // Cancel existing timer if any
-    // Refresh every 10 seconds to catch schedule starts/stops/pauses
-    _autoRefreshTimer = Timer.periodic(Duration(seconds: 10), (timer) {
+    // Refresh every 30 seconds to catch state changes (schedules/pauses)
+    _autoRefreshTimer = Timer.periodic(Duration(seconds: 30), (timer) {
       if (_isScreenVisible && mounted) {
         _refreshDashboardSilent();
       }
@@ -253,6 +254,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     children: [
                       ActiveSessionWidget(key: _activeSessionKey),
                       DailyStatsWidget(key: _statsKey),
+                      PeakUsageHeatmap(),
                       SizedBox(height: 8),
                       InsightsWidget(key: _insightsKey),
                       ActiveLimitsWidget(key: _limitsKey),

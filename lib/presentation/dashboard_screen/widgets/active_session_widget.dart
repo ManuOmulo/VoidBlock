@@ -26,8 +26,8 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
   void initState() {
     super.initState();
     _loadActiveSession();
-    // Update every minute
-    _timer = Timer.periodic(Duration(minutes: 1), (_) => _loadActiveSession());
+    // Update every 15 seconds for UI sync (minutes only)
+    _timer = Timer.periodic(Duration(seconds: 15), (_) => setState(() {}));
   }
 
   Future<void> refresh() async {
@@ -58,7 +58,8 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
     }
 
     final theme = Theme.of(context);
-    final remaining = (_activeSession!['remainingMinutes'] as int?) ?? 0;
+    final remainingData = _calculateRemaining();
+    final remaining = remainingData['minutes'] as int;
     final isPaused = (_activeSession!['isPaused'] as bool?) ?? false;
     final apps = (_activeSession!['blockedApps'] as List?) ?? [];
     final isStrictMode = (_activeSession!['isStrictMode'] as bool?) ?? false;
@@ -536,5 +537,53 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
       }
       throw Exception('Hard mode locked');
     }
+  }
+
+  Map<String, int> _calculateRemaining() {
+    if (_activeSession == null) return {'minutes': 0, 'seconds': 0};
+
+    final String type = _activeSession!['type'] as String? ?? 'manual';
+    final int now = DateTime.now().millisecondsSinceEpoch;
+
+    if (type == 'schedule') {
+      final int endTime = _activeSession!['endTime'] as int? ?? 0;
+      final int remainingMs = endTime - now;
+
+      if (remainingMs <= 0) return {'minutes': 0, 'seconds': 0};
+
+      return {
+        'minutes': (remainingMs / (60 * 1000)).floor(),
+        'seconds': ((remainingMs % (60 * 1000)) / 1000).floor(),
+      };
+    }
+
+    // Manual session logic
+    final int startTime = _activeSession!['startTime'] as int? ?? 0;
+    final int durationMinutes = _activeSession!['durationMinutes'] as int? ?? 0;
+    final bool isPaused = _activeSession!['isPaused'] as bool? ?? false;
+    final int? pausedAt = _activeSession!['pausedAt'] as int?;
+    final int accumulatedPausedMs =
+        _activeSession!['accumulatedPausedMs'] as int? ?? 0;
+
+    if (durationMinutes <= 0) {
+      return {'minutes': 0, 'seconds': 0};
+    }
+
+    final int totalElapsedMs;
+    if (isPaused && pausedAt != null) {
+      totalElapsedMs = pausedAt - startTime - accumulatedPausedMs;
+    } else {
+      totalElapsedMs = now - startTime - accumulatedPausedMs;
+    }
+
+    final int totalDurationMs = durationMinutes * 60 * 1000;
+    final int remainingMs = totalDurationMs - totalElapsedMs;
+
+    if (remainingMs <= 0) return {'minutes': 0, 'seconds': 0};
+
+    return {
+      'minutes': (remainingMs / (60 * 1000)).floor(),
+      'seconds': ((remainingMs % (60 * 1000)) / 1000).floor(),
+    };
   }
 }

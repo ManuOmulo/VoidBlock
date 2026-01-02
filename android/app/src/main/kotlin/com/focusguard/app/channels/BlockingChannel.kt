@@ -257,6 +257,8 @@ class BlockingChannel(private val context: Context) : MethodChannel.MethodCallHa
                         "cooldownConfirmed" to session.cooldownConfirmed,
                         "message" to session.motivationalMessage,
                         "remainingMinutes" to calculateRemainingMinutes(session),
+                        "accumulatedPausedMs" to session.accumulatedPausedMs,
+                        "pausedAt" to session.pausedAt,
                         "blockedApps" to apps.map { mapOf(
                             "packageName" to it.packageName,
                             "appName" to it.appName
@@ -476,6 +478,7 @@ class BlockingChannel(private val context: Context) : MethodChannel.MethodCallHa
                             id = session.id,
                             isPaused = true,
                             pausedAt = System.currentTimeMillis(),
+                            accumulated = session.accumulatedPausedMs,
                             remaining = remaining
                         )
                     }
@@ -574,18 +577,28 @@ class BlockingChannel(private val context: Context) : MethodChannel.MethodCallHa
                 
                 if (session != null && session.isActive && session.isPaused) {
                     // ... (existing manual resume logic) ...
+                    val now = System.currentTimeMillis()
+                    val pauseDuration = if (session.pausedAt != null) now - session.pausedAt else 0L
+                    val newAccumulated = session.accumulatedPausedMs + pauseDuration
+                    
                     withContext(Dispatchers.IO) {
                         database.blockingSessionDao().updatePauseStatus(
                             id = session.id,
                             isPaused = false,
                             pausedAt = null,
+                            accumulated = newAccumulated,
                             remaining = null
                         )
                     }
                     
-                    if (session.remainingMinutes != null) {
-                        timerManager.scheduleAutoStop(session.id, session.remainingMinutes)
-                    }
+                    // Recalculate remaining based on new accumulation
+                    val updatedSession = session.copy(
+                        isPaused = false,
+                        pausedAt = null,
+                        accumulatedPausedMs = newAccumulated
+                    )
+                    val remaining = calculateRemainingMinutes(updatedSession)
+                    timerManager.scheduleAutoStop(session.id, remaining)
                     
                     val packages = withContext(Dispatchers.IO) {
                         database.sessionBlockedAppDao().getPackageNamesForSession(session.id)
@@ -688,8 +701,19 @@ class BlockingChannel(private val context: Context) : MethodChannel.MethodCallHa
      * Calculate remaining minutes for a session
      */
     private fun calculateRemainingMinutes(session: BlockingSessionEntity): Int {
-        val elapsed = (System.currentTimeMillis() - session.startTime) / (60 * 1000)
-        val remaining = session.durationMinutes - elapsed.toInt()
+        if (session.durationMinutes <= 0) return 0
+        
+        val now = System.currentTimeMillis()
+        val totalElapsedMs = if (session.isPaused && session.pausedAt != null) {
+            // If paused, we only count time up to when it was paused
+            session.pausedAt - session.startTime - session.accumulatedPausedMs
+        } else {
+            // If active, we count everything minus total pause time
+            now - session.startTime - session.accumulatedPausedMs
+        }
+        
+        val elapsedMinutes = (totalElapsedMs / (60 * 1000)).toInt()
+        val remaining = session.durationMinutes - elapsedMinutes
         return maxOf(0, remaining)
     }
     

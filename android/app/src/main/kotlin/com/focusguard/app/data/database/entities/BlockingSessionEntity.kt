@@ -20,6 +20,7 @@ data class BlockingSessionEntity(
     val isStrictMode: Boolean,
     val motivationalMessage: String?,
     val pausedAt: Long? = null,
+    val accumulatedPausedMs: Long = 0,
     val remainingMinutes: Int? = null,
     val createdAt: Long = System.currentTimeMillis(),
     

@@ -21,9 +21,10 @@ import com.focusguard.app.data.database.entities.*
         SessionBlockedAppEntity::class,
         StrictModePreferencesEntity::class,
         AppLimitEntity::class,
-        AppLimitAppEntity::class
+        AppLimitAppEntity::class,
+        FocusSessionEntity::class
     ],
-    version = 6,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sessionBlockedAppDao(): SessionBlockedAppDao
     abstract fun strictModePreferencesDao(): StrictModePreferencesDao
     abstract fun appLimitDao(): AppLimitDao
+    abstract fun focusSessionDao(): FocusSessionDao
     
     companion object {
         private const val DATABASE_NAME = "focusguard_database"
@@ -55,7 +57,7 @@ abstract class AppDatabase : RoomDatabase() {
                 AppDatabase::class.java,
                 DATABASE_NAME
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 // Production: No fallback to destructive migration
                 // If migration fails, app will crash - this forces us to write correct migrations
                 .build()
@@ -172,6 +174,30 @@ abstract class AppDatabase : RoomDatabase() {
                         FOREIGN KEY(limitId) REFERENCES app_limits(id) ON DELETE CASCADE
                     )
                 """.trimIndent())
+            }
+        }
+
+        private val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Create focus_sessions table
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS focus_sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        startTime INTEGER NOT NULL,
+                        endTime INTEGER,
+                        type TEXT NOT NULL,
+                        relatedId INTEGER,
+                        durationMinutes INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+            }
+        }
+
+        private val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Add accumulatedPausedMs column to blocking_sessions
+                database.execSQL("ALTER TABLE blocking_sessions ADD COLUMN accumulatedPausedMs INTEGER NOT NULL DEFAULT 0")
             }
         }
     }
