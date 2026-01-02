@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:focusguard/services/blocking_service.dart';
+import 'package:voidblock/services/blocking_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +16,7 @@ void main() {
       // Set up mock method channel handler
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         (MethodCall methodCall) async {
           methodCalls.add(methodCall);
 
@@ -44,7 +44,7 @@ void main() {
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         null,
       );
     });
@@ -129,7 +129,7 @@ void main() {
       test('returns false on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/blocking'),
+          const MethodChannel('com.voidblock.app/blocking'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'stopBlocking') {
               throw PlatformException(code: 'ERROR', message: 'Cannot stop');
@@ -152,7 +152,7 @@ void main() {
       test('returns session data when active', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/blocking'),
+          const MethodChannel('com.voidblock.app/blocking'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getActiveSession') {
               return {
@@ -185,7 +185,7 @@ void main() {
       test('returns null on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/blocking'),
+          const MethodChannel('com.voidblock.app/blocking'),
           (MethodCall methodCall) async {
             throw PlatformException(code: 'ERROR', message: 'Failed');
           },
@@ -200,7 +200,7 @@ void main() {
       test('checks if specific app is blocked', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/blocking'),
+          const MethodChannel('com.voidblock.app/blocking'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'isAppBlocked') {
               final packageName = methodCall.arguments['packageName'];
@@ -224,7 +224,7 @@ void main() {
       test('returns false on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/blocking'),
+          const MethodChannel('com.voidblock.app/blocking'),
           (MethodCall methodCall) async {
             throw PlatformException(code: 'ERROR', message: 'Failed');
           },
@@ -246,7 +246,7 @@ void main() {
       test('returns false when no active session', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/blocking'),
+          const MethodChannel('com.voidblock.app/blocking'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'pauseBlocking') {
               throw PlatformException(
@@ -274,7 +274,7 @@ void main() {
       test('returns false when no paused session', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/blocking'),
+          const MethodChannel('com.voidblock.app/blocking'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'resumeBlocking') {
               throw PlatformException(

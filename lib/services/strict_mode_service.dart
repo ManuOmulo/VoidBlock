@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 /// Bridges to native StrictModeManager
 class StrictModeService {
   static const MethodChannel _channel =
-      MethodChannel('com.focusguard.app/strict_mode');
+      MethodChannel('com.voidblock.app/strict_mode');
 
   /// Get default strict mode preferences
   Future<Map<String, dynamic>?> getDefaultPreferences() async {

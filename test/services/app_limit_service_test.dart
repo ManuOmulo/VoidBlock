@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:focusguard/services/app_limit_service.dart';
+import 'package:voidblock/services/app_limit_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +15,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/app_limit'),
+        const MethodChannel('com.voidblock.app/app_limit'),
         (MethodCall methodCall) async {
           methodCalls.add(methodCall);
 
@@ -48,7 +48,7 @@ void main() {
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/app_limit'),
+        const MethodChannel('com.voidblock.app/app_limit'),
         null,
       );
     });
@@ -117,7 +117,7 @@ void main() {
       test('returns null on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/app_limit'),
+          const MethodChannel('com.voidblock.app/app_limit'),
           (MethodCall methodCall) async {
             throw PlatformException(code: 'ERROR', message: 'Failed');
           },
@@ -143,7 +143,7 @@ void main() {
       test('parses multiple limits correctly', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/app_limit'),
+          const MethodChannel('com.voidblock.app/app_limit'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getAllLimits') {
               return [
@@ -193,7 +193,7 @@ void main() {
       test('returns usage data for requested packages', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/app_limit'),
+          const MethodChannel('com.voidblock.app/app_limit'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getDailyUsage') {
               return {
@@ -259,7 +259,7 @@ void main() {
       test('returns false on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/app_limit'),
+          const MethodChannel('com.voidblock.app/app_limit'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'unlockLimit') {
               throw PlatformException(
@@ -298,7 +298,7 @@ void main() {
       test('throws exception when HARD mode prevents deletion', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/app_limit'),
+          const MethodChannel('com.voidblock.app/app_limit'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'deleteLimit') {
               throw PlatformException(
@@ -321,7 +321,7 @@ void main() {
       test('usage under limit - not enforced', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/app_limit'),
+          const MethodChannel('com.voidblock.app/app_limit'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getDailyUsage') {
               return {'com.instagram.android': 30}; // 30 min used
@@ -353,7 +353,7 @@ void main() {
       test('usage at limit - should enforce', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/app_limit'),
+          const MethodChannel('com.voidblock.app/app_limit'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getDailyUsage') {
               return {'com.instagram.android': 60}; // At limit
@@ -383,7 +383,7 @@ void main() {
       test('usage over limit - should enforce', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/app_limit'),
+          const MethodChannel('com.voidblock.app/app_limit'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getDailyUsage') {
               return {'com.instagram.android': 75}; // Over limit

@@ -113,7 +113,7 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'FocusGuard needs these permissions to block apps effectively',
+                        'VoidBlock needs these permissions to block apps effectively',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),

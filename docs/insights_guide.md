@@ -1,6 +1,6 @@
 # Understanding Your Focus Insights
 
-FocusGuard analytics don't just show numbers; they tell the story of your relationship with your device. Here is how to interpret each part of your report.
+VoidBlock analytics don't just show numbers; they tell the story of your relationship with your device. Here is how to interpret each part of your report.
 
 ## 1. Focus Records (Weekly Bar Chart)
 

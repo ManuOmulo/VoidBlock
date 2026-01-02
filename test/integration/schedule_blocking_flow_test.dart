@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:focusguard/services/schedule_service.dart';
+import 'package:voidblock/services/schedule_service.dart';
 
 /// Integration tests for schedule blocking flow
 /// Tests schedule creation, activation, and enforcement
@@ -20,7 +20,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/schedule'),
+        const MethodChannel('com.voidblock.app/schedule'),
         (MethodCall methodCall) async {
           methodCalls.add(methodCall);
 
@@ -67,7 +67,7 @@ void main() {
       // Mock Blocking Channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         (MethodCall methodCall) async {
           switch (methodCall.method) {
             case 'isAppBlocked':
@@ -90,19 +90,19 @@ void main() {
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/schedule'),
+        const MethodChannel('com.voidblock.app/schedule'),
         null,
       );
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         null,
       );
     });
 
     group('Schedule CRUD Operations', () {
       test('Create schedule with all fields', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         final result = await platform.invokeMethod('createSchedule', {
           'name': 'Work Focus',
@@ -124,7 +124,7 @@ void main() {
       });
 
       test('Get all schedules returns created schedules', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         // Create two schedules
         await platform.invokeMethod('createSchedule', {
@@ -153,7 +153,7 @@ void main() {
       });
 
       test('Update schedule modifies existing data', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         // Create a schedule
         await platform.invokeMethod('createSchedule', {
@@ -182,7 +182,7 @@ void main() {
       });
 
       test('Delete schedule removes it from list', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         // Create a schedule
         await platform.invokeMethod('createSchedule', {
@@ -203,7 +203,7 @@ void main() {
       });
 
       test('Toggle schedule changes active state', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         // Create an active schedule
         await platform.invokeMethod('createSchedule', {
@@ -237,7 +237,7 @@ void main() {
 
     group('Schedule Activation & Enforcement', () {
       test('Active schedule blocks apps', () async {
-        const platform = MethodChannel('com.focusguard.app/blocking');
+        const platform = MethodChannel('com.voidblock.app/blocking');
 
         // Simulate an active schedule
         mockActiveSchedules.add({
@@ -264,7 +264,7 @@ void main() {
       });
 
       test('No active schedule means no blocking', () async {
-        const platform = MethodChannel('com.focusguard.app/blocking');
+        const platform = MethodChannel('com.voidblock.app/blocking');
 
         // No active schedules
         mockActiveSchedules.clear();
@@ -277,7 +277,7 @@ void main() {
       });
 
       test('Multiple active schedules combine blocked apps', () async {
-        const platform = MethodChannel('com.focusguard.app/blocking');
+        const platform = MethodChannel('com.voidblock.app/blocking');
 
         mockActiveSchedules.addAll([
           {
@@ -307,7 +307,7 @@ void main() {
 
     group('Schedule Strict Mode', () {
       test('Schedule with EASY mode has PIN', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'PIN Protected',
@@ -326,7 +326,7 @@ void main() {
       });
 
       test('Schedule with MEDIUM mode has cooldown', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'Cooldown Protected',
@@ -345,7 +345,7 @@ void main() {
       });
 
       test('Schedule with HARD mode has no unlock options', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'Hard Mode',
@@ -366,7 +366,7 @@ void main() {
 
     group('Schedule Days of Week', () {
       test('Weekday schedule', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'Weekdays Only',
@@ -383,7 +383,7 @@ void main() {
       });
 
       test('Weekend schedule', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'Weekends Only',
@@ -400,7 +400,7 @@ void main() {
       });
 
       test('Single day schedule', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'Monday Only',
@@ -416,7 +416,7 @@ void main() {
       });
 
       test('Every day schedule', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'Everyday',
@@ -433,7 +433,7 @@ void main() {
 
     group('Schedule Time Validation', () {
       test('Standard daytime schedule', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'Daytime',
@@ -449,7 +449,7 @@ void main() {
       });
 
       test('Overnight schedule (crosses midnight)', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'Night Owl',
@@ -465,7 +465,7 @@ void main() {
       });
 
       test('Full day schedule', () async {
-        const platform = MethodChannel('com.focusguard.app/schedule');
+        const platform = MethodChannel('com.voidblock.app/schedule');
 
         await platform.invokeMethod('createSchedule', {
           'name': 'All Day',

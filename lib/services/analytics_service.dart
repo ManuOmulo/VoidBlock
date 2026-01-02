@@ -40,7 +40,7 @@ class InstalledApp {
  * Service for analytics and usage tracking operations
  */
 class AnalyticsService {
-  static const platform = MethodChannel('com.focusguard.app/analytics');
+  static const platform = MethodChannel('com.voidblock.app/analytics');
 
   /// Get usage statistics for the past N days
   Future<Map<String, dynamic>> getUsageStats({int days = 7}) async {

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
  * Service for managing app permissions
  */
 class PermissionService {
-  static const platform = MethodChannel('com.focusguard.app/permissions');
+  static const platform = MethodChannel('com.voidblock.app/permissions');
 
   /// Check if usage stats permission is granted
   Future<bool> checkUsageStatsPermission() async {

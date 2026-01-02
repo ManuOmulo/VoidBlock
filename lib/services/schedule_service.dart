@@ -75,7 +75,7 @@ class Schedule {
  * Service for schedule management operations
  */
 class ScheduleService {
-  static const platform = MethodChannel('com.focusguard.app/schedule');
+  static const platform = MethodChannel('com.voidblock.app/schedule');
 
   /// Create a new schedule
   Future<bool> createSchedule(Schedule schedule) async {

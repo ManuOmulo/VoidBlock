@@ -290,7 +290,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.all(24.0),
                   child: Center(
                     child: Text(
-                      'FocusGuard v1.0.0',
+                      'VoidBlock v1.0.0',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color:
                             theme.colorScheme.onSurfaceVariant.withOpacity(0.5),

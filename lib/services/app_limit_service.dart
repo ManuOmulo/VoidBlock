@@ -65,7 +65,7 @@ class AppLimit {
 }
 
 class AppLimitService {
-  static const platform = MethodChannel('com.focusguard.app/app_limit');
+  static const platform = MethodChannel('com.voidblock.app/app_limit');
 
   Future<int?> createLimit(AppLimit limit) async {
     try {

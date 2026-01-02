@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
  * Handles communication with native Android blocking service
  */
 class BlockingService {
-  static const platform = MethodChannel('com.focusguard.app/blocking');
+  static const platform = MethodChannel('com.voidblock.app/blocking');
 
   /// Start a manual blocking session with specified apps and duration
   Future<bool> startBlocking({

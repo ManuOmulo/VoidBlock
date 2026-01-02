@@ -196,7 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       final appsToBlock = mostUsedApps
           .map((app) => app['packageName'] as String)
           .where(
-              (pkg) => pkg != 'com.focusguard.app') // Don't block our own app
+              (pkg) => pkg != 'com.voidblock.app') // Don't block our own app
           .toList();
 
       if (appsToBlock.isEmpty) {

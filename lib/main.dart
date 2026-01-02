@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
     return Sizer(
       builder: (context, orientation, screenType) {
         return MaterialApp(
-          title: 'focusguard',
+          title: 'VoidBlock',
           theme: AppTheme.lightTheme,
           darkTheme: AppTheme.darkTheme,
           themeMode: ThemeMode.light,

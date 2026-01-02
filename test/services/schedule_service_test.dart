@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:focusguard/services/schedule_service.dart';
+import 'package:voidblock/services/schedule_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +15,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/schedule'),
+        const MethodChannel('com.voidblock.app/schedule'),
         (MethodCall methodCall) async {
           methodCalls.add(methodCall);
 
@@ -44,7 +44,7 @@ void main() {
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/schedule'),
+        const MethodChannel('com.voidblock.app/schedule'),
         null,
       );
     });
@@ -101,7 +101,7 @@ void main() {
       test('returns false on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/schedule'),
+          const MethodChannel('com.voidblock.app/schedule'),
           (MethodCall methodCall) async {
             throw PlatformException(code: 'ERROR', message: 'Failed');
           },
@@ -128,7 +128,7 @@ void main() {
       test('parses multiple schedules correctly', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/schedule'),
+          const MethodChannel('com.voidblock.app/schedule'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getAllSchedules') {
               return [
@@ -173,7 +173,7 @@ void main() {
       test('returns empty list on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/schedule'),
+          const MethodChannel('com.voidblock.app/schedule'),
           (MethodCall methodCall) async {
             throw PlatformException(code: 'ERROR', message: 'Failed');
           },
@@ -193,7 +193,7 @@ void main() {
       test('returns schedule when found', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/schedule'),
+          const MethodChannel('com.voidblock.app/schedule'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getScheduleById') {
               final id = methodCall.arguments['id'];
@@ -246,7 +246,7 @@ void main() {
       test('returns false on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/schedule'),
+          const MethodChannel('com.voidblock.app/schedule'),
           (MethodCall methodCall) async {
             throw PlatformException(code: 'ERROR', message: 'Failed');
           },
@@ -277,7 +277,7 @@ void main() {
       test('throws exception when HARD mode prevents deletion', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/schedule'),
+          const MethodChannel('com.voidblock.app/schedule'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'deleteSchedule') {
               throw PlatformException(
@@ -316,7 +316,7 @@ void main() {
       test('returns false on platform exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/schedule'),
+          const MethodChannel('com.voidblock.app/schedule'),
           (MethodCall methodCall) async {
             throw PlatformException(code: 'ERROR', message: 'Failed');
           },
@@ -336,7 +336,7 @@ void main() {
       test('returns only currently active schedules', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/schedule'),
+          const MethodChannel('com.voidblock.app/schedule'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getActiveSchedules') {
               return [

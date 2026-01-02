@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:focusguard/services/app_limit_service.dart';
+import 'package:voidblock/services/app_limit_service.dart';
 
 void main() {
   group('AppLimit Model', () {

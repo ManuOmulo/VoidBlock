@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:focusguard/presentation/manual_blocking_screen/manual_blocking_screen.dart';
-import 'package:focusguard/presentation/dashboard_screen/dashboard_screen.dart';
-import 'package:focusguard/routes/app_routes.dart';
+import 'package:voidblock/presentation/manual_blocking_screen/manual_blocking_screen.dart';
+import 'package:voidblock/presentation/dashboard_screen/dashboard_screen.dart';
+import 'package:voidblock/routes/app_routes.dart';
 
 /// Integration tests for manual blocking flow
 /// Tests the complete user journey from selecting apps to starting a blocking session
@@ -23,7 +23,7 @@ void main() {
       // Mock Blocking Channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         (MethodCall methodCall) async {
           methodCalls.add(methodCall);
 
@@ -63,7 +63,7 @@ void main() {
       // Mock Analytics Channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/analytics'),
+        const MethodChannel('com.voidblock.app/analytics'),
         (MethodCall methodCall) async {
           switch (methodCall.method) {
             case 'getUserApps':
@@ -99,7 +99,7 @@ void main() {
       // Mock Permission Channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/permission'),
+        const MethodChannel('com.voidblock.app/permission'),
         (MethodCall methodCall) async {
           return true; // All permissions granted
         },
@@ -108,7 +108,7 @@ void main() {
       // Mock StrictMode Channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/strict_mode'),
+        const MethodChannel('com.voidblock.app/strict_mode'),
         (MethodCall methodCall) async {
           if (methodCall.method == 'encryptPin') {
             return 'encrypted_${methodCall.arguments['pin']}';
@@ -120,10 +120,10 @@ void main() {
 
     tearDown(() {
       const channels = [
-        'com.focusguard.app/blocking',
-        'com.focusguard.app/analytics',
-        'com.focusguard.app/permission',
-        'com.focusguard.app/strict_mode',
+        'com.voidblock.app/blocking',
+        'com.voidblock.app/analytics',
+        'com.voidblock.app/permission',
+        'com.voidblock.app/strict_mode',
       ];
 
       for (final channel in channels) {
@@ -163,7 +163,7 @@ void main() {
 
       // Simulate starting a blocking session programmatically
       // This tests the service layer integration
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       final result = await platform.invokeMethod('startBlocking', {
         'apps': ['com.instagram.android', 'com.twitter.android'],
@@ -192,7 +192,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       await platform.invokeMethod('startBlocking', {
         'apps': ['com.instagram.android'],
@@ -217,7 +217,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       await platform.invokeMethod('startBlocking', {
         'apps': ['com.youtube.android'],
@@ -246,7 +246,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       await platform.invokeMethod('startBlocking', {
         'apps': [
@@ -275,7 +275,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       // Start blocking Instagram
       await platform.invokeMethod('startBlocking', {
@@ -306,7 +306,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       // Start blocking
       await platform.invokeMethod('startBlocking', {
@@ -341,7 +341,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       final session = await platform.invokeMethod('getActiveSession');
       expect(session, isNull);
@@ -356,7 +356,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       // Start a session
       await platform.invokeMethod('startBlocking', {
@@ -387,7 +387,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         (MethodCall methodCall) async {
           if (methodCall.method == 'startBlocking') {
             receivedDuration = methodCall.arguments['durationMinutes'];
@@ -397,7 +397,7 @@ void main() {
         },
       );
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       // Test various durations
       for (final duration in [15, 30, 45, 60, 90, 120, 180, 240]) {
@@ -414,7 +414,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         null,
       );
     });
@@ -426,7 +426,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         (MethodCall methodCall) async {
           if (methodCall.method == 'startBlocking') {
             receivedApps = List<String>.from(methodCall.arguments['apps']);
@@ -436,7 +436,7 @@ void main() {
         },
       );
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       final testApps = [
         'com.instagram.android',
@@ -459,7 +459,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         null,
       );
     });
@@ -472,7 +472,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         (MethodCall methodCall) async {
           if (methodCall.method == 'startBlocking') {
             receivedArgs = Map<String, dynamic>.from(methodCall.arguments);
@@ -482,7 +482,7 @@ void main() {
         },
       );
 
-      const platform = MethodChannel('com.focusguard.app/blocking');
+      const platform = MethodChannel('com.voidblock.app/blocking');
 
       // Test NONE level
       await platform.invokeMethod('startBlocking', {
@@ -528,7 +528,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         null,
       );
     });

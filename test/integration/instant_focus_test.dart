@@ -21,7 +21,7 @@ void main() {
       // Mock Blocking Channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         (MethodCall methodCall) async {
           blockingCalls.add(methodCall);
 
@@ -71,7 +71,7 @@ void main() {
       // Mock Analytics Channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/analytics'),
+        const MethodChannel('com.voidblock.app/analytics'),
         (MethodCall methodCall) async {
           analyticsCalls.add(methodCall);
 
@@ -129,19 +129,19 @@ void main() {
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         null,
       );
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/analytics'),
+        const MethodChannel('com.voidblock.app/analytics'),
         null,
       );
     });
 
     group('Instant Focus Session Creation', () {
       test('Gets top 5 most used apps for blocking', () async {
-        const analyticsPlatform = MethodChannel('com.focusguard.app/analytics');
+        const analyticsPlatform = MethodChannel('com.voidblock.app/analytics');
 
         final mostUsed =
             await analyticsPlatform.invokeMethod('getMostUsedApps', {
@@ -154,8 +154,8 @@ void main() {
       });
 
       test('Creates 25-minute Pomodoro session', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const analyticsPlatform = MethodChannel('com.focusguard.app/analytics');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const analyticsPlatform = MethodChannel('com.voidblock.app/analytics');
 
         // Get most used apps
         final mostUsed =
@@ -165,7 +165,7 @@ void main() {
 
         final appsToBlock = mostUsed
             .map((app) => app['packageName'] as String)
-            .where((pkg) => pkg != 'com.focusguard.app')
+            .where((pkg) => pkg != 'com.voidblock.app')
             .toList();
 
         // Start blocking
@@ -184,19 +184,19 @@ void main() {
             equals('Deep Focus Session Started'));
       });
 
-      test('Excludes FocusGuard app from blocking', () async {
-        const analyticsPlatform = MethodChannel('com.focusguard.app/analytics');
+      test('Excludes VoidBlock app from blocking', () async {
+        const analyticsPlatform = MethodChannel('com.voidblock.app/analytics');
 
-        // Mock response including FocusGuard itself
+        // Mock response including VoidBlock itself
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/analytics'),
+          const MethodChannel('com.voidblock.app/analytics'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getMostUsedApps') {
               return [
                 {
-                  'packageName': 'com.focusguard.app',
-                  'appName': 'FocusGuard',
+                  'packageName': 'com.voidblock.app',
+                  'appName': 'VoidBlock',
                   'usageMinutes': 200
                 },
                 {
@@ -217,10 +217,10 @@ void main() {
 
         final appsToBlock = mostUsed
             .map((app) => app['packageName'] as String)
-            .where((pkg) => pkg != 'com.focusguard.app')
+            .where((pkg) => pkg != 'com.voidblock.app')
             .toList();
 
-        expect(appsToBlock, isNot(contains('com.focusguard.app')));
+        expect(appsToBlock, isNot(contains('com.voidblock.app')));
         expect(appsToBlock, contains('com.instagram.android'));
       });
 
@@ -228,7 +228,7 @@ void main() {
         // Mock empty response
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/analytics'),
+          const MethodChannel('com.voidblock.app/analytics'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'getMostUsedApps') {
               return [];
@@ -237,7 +237,7 @@ void main() {
           },
         );
 
-        const analyticsPlatform = MethodChannel('com.focusguard.app/analytics');
+        const analyticsPlatform = MethodChannel('com.voidblock.app/analytics');
         final mostUsed =
             await analyticsPlatform.invokeMethod('getMostUsedApps', {
           'limit': 5,
@@ -251,7 +251,7 @@ void main() {
     group('Session Monitoring Behavior', () {
       test('isAppBlocked returns true for blocked apps during session',
           () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         // Start session
         await blockingPlatform.invokeMethod('startBlocking', {
@@ -276,7 +276,7 @@ void main() {
       });
 
       test('isAppBlocked returns false when no session active', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         // No session started
         final isBlocked = await blockingPlatform.invokeMethod('isAppBlocked', {
@@ -287,7 +287,7 @@ void main() {
       });
 
       test('Session state persists across getActiveSession calls', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         // Start session
         await blockingPlatform.invokeMethod('startBlocking', {
@@ -310,7 +310,7 @@ void main() {
       });
 
       test('Paused session maintains blocked apps list', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         // Start session
         await blockingPlatform.invokeMethod('startBlocking', {
@@ -329,7 +329,7 @@ void main() {
       });
 
       test('Resume restores monitoring', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         // Start session
         await blockingPlatform.invokeMethod('startBlocking', {
@@ -350,7 +350,7 @@ void main() {
 
     group('Session Termination', () {
       test('stopBlocking clears session completely', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         // Start session
         await blockingPlatform.invokeMethod('startBlocking', {
@@ -376,7 +376,7 @@ void main() {
       });
 
       test('getActiveSession returns null after stop', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         // Start then stop
         await blockingPlatform.invokeMethod('startBlocking', {
@@ -394,7 +394,7 @@ void main() {
 
     group('Multiple Sessions', () {
       test('Starting new session replaces previous session', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         // Start first session
         await blockingPlatform.invokeMethod('startBlocking', {
@@ -425,7 +425,7 @@ void main() {
 
     group('Instant Focus with Strict Mode', () {
       test('Instant Focus can use strict mode', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
 
         await blockingPlatform.invokeMethod('startBlocking', {
           'apps': ['com.instagram.android'],

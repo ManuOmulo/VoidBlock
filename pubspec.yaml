@@ -1,4 +1,4 @@
-name: focusguard
+name: voidblock
 description: A new Flutter project.
 publish_to: none
 version: 1.0.0+1
@@ -7,13 +7,13 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
-  flutter:       # CRITICAL: Required for every Flutter project - DO NOT REMOVE
+  flutter: # CRITICAL: Required for every Flutter project - DO NOT REMOVE
     sdk: flutter # CRITICAL: Required for every Flutter project - DO NOT REMOVE
 
   # CRITICAL: Core UI and responsive design - DO NOT REMOVE OR MODIFY
-  sizer: ^2.0.15              # Required for responsive design system
-  flutter_svg: ^2.0.9        # Required for SVG icon support
-  google_fonts: ^6.1.0       # Required for typography (replaces local fonts)
+  sizer: ^2.0.15 # Required for responsive design system
+  flutter_svg: ^2.0.9 # Required for SVG icon support
+  google_fonts: ^6.1.0 # Required for typography (replaces local fonts)
   shared_preferences: ^2.2.2 # Required for local data storage
   web: ^1.1.1
 
@@ -27,8 +27,8 @@ dependencies:
   intl: ^0.19.0
 
 dev_dependencies:
-  flutter_test:    # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
-    sdk: flutter   # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
+  flutter_test: # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
+    sdk: flutter # CRITICAL: Required for Flutter project testing - DO NOT REMOVE
   flutter_lints: ^5.0.0 # CRITICAL: Required for code quality - DO NOT REMOVE
 
 flutter:

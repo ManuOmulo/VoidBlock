@@ -18,7 +18,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/app_limit'),
+        const MethodChannel('com.voidblock.app/app_limit'),
         (MethodCall methodCall) async {
           methodCalls.add(methodCall);
 
@@ -74,7 +74,7 @@ void main() {
       // Mock Blocking Channel
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         (MethodCall methodCall) async {
           if (methodCall.method == 'isAppBlocked') {
             final packageName = methodCall.arguments['packageName'];
@@ -114,19 +114,19 @@ void main() {
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/app_limit'),
+        const MethodChannel('com.voidblock.app/app_limit'),
         null,
       );
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/blocking'),
+        const MethodChannel('com.voidblock.app/blocking'),
         null,
       );
     });
 
     group('Limit CRUD Operations', () {
       test('Create limit with all fields', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         final id = await platform.invokeMethod('createLimit', {
           'name': 'Social Media Limit',
@@ -146,7 +146,7 @@ void main() {
       });
 
       test('Get all limits returns created limits', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         await platform.invokeMethod('createLimit', {
           'name': 'Limit 1',
@@ -168,7 +168,7 @@ void main() {
       });
 
       test('Toggle limit changes active state', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         await platform.invokeMethod('createLimit', {
           'name': 'Toggle Test',
@@ -188,7 +188,7 @@ void main() {
       });
 
       test('Delete limit removes it', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         await platform.invokeMethod('createLimit', {
           'name': 'To Delete',
@@ -207,7 +207,7 @@ void main() {
 
     group('Usage Tracking', () {
       test('Get daily usage returns correct values', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         // Set up mock usage
         mockUsage['com.instagram.android'] = 45;
@@ -222,7 +222,7 @@ void main() {
       });
 
       test('Usage returns 0 for apps with no recorded usage', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         final usage = await platform.invokeMethod('getDailyUsage', {
           'packageNames': ['com.new.app'],
@@ -234,8 +234,8 @@ void main() {
 
     group('Limit Enforcement', () {
       test('App NOT blocked when usage under limit', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const limitPlatform = MethodChannel('com.focusguard.app/app_limit');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const limitPlatform = MethodChannel('com.voidblock.app/app_limit');
 
         // Create a limit of 60 minutes
         await limitPlatform.invokeMethod('createLimit', {
@@ -256,8 +256,8 @@ void main() {
       });
 
       test('App IS blocked when usage equals limit', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const limitPlatform = MethodChannel('com.focusguard.app/app_limit');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const limitPlatform = MethodChannel('com.voidblock.app/app_limit');
 
         // Create a limit of 60 minutes
         await limitPlatform.invokeMethod('createLimit', {
@@ -278,8 +278,8 @@ void main() {
       });
 
       test('App IS blocked when usage exceeds limit', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const limitPlatform = MethodChannel('com.focusguard.app/app_limit');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const limitPlatform = MethodChannel('com.voidblock.app/app_limit');
 
         // Create a limit of 60 minutes
         await limitPlatform.invokeMethod('createLimit', {
@@ -300,8 +300,8 @@ void main() {
       });
 
       test('Inactive limit does NOT block app', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const limitPlatform = MethodChannel('com.focusguard.app/app_limit');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const limitPlatform = MethodChannel('com.voidblock.app/app_limit');
 
         // Create an INACTIVE limit
         await limitPlatform.invokeMethod('createLimit', {
@@ -322,8 +322,8 @@ void main() {
       });
 
       test('Unlisted app is NOT blocked', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const limitPlatform = MethodChannel('com.focusguard.app/app_limit');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const limitPlatform = MethodChannel('com.voidblock.app/app_limit');
 
         // Create a limit for Instagram
         await limitPlatform.invokeMethod('createLimit', {
@@ -346,8 +346,8 @@ void main() {
 
     group('Multiple Limits', () {
       test('App with multiple limits uses each limit independently', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const limitPlatform = MethodChannel('com.focusguard.app/app_limit');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const limitPlatform = MethodChannel('com.voidblock.app/app_limit');
 
         // Create a generous limit for Instagram
         await limitPlatform.invokeMethod('createLimit', {
@@ -379,7 +379,7 @@ void main() {
 
     group('Limit Strict Mode', () {
       test('Limit with EASY mode has PIN', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         await platform.invokeMethod('createLimit', {
           'name': 'PIN Protected',
@@ -396,7 +396,7 @@ void main() {
       });
 
       test('Limit with MEDIUM mode has cooldown', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         await platform.invokeMethod('createLimit', {
           'name': 'Cooldown Protected',
@@ -413,7 +413,7 @@ void main() {
       });
 
       test('Limit with HARD mode has time lock', () async {
-        const platform = MethodChannel('com.focusguard.app/app_limit');
+        const platform = MethodChannel('com.voidblock.app/app_limit');
 
         await platform.invokeMethod('createLimit', {
           'name': 'Hard Mode',
@@ -432,8 +432,8 @@ void main() {
 
     group('Edge Cases', () {
       test('Zero usage never triggers limit', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const limitPlatform = MethodChannel('com.focusguard.app/app_limit');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const limitPlatform = MethodChannel('com.voidblock.app/app_limit');
 
         await limitPlatform.invokeMethod('createLimit', {
           'name': 'Very Strict',
@@ -452,8 +452,8 @@ void main() {
       });
 
       test('Very large usage is still correctly detected', () async {
-        const blockingPlatform = MethodChannel('com.focusguard.app/blocking');
-        const limitPlatform = MethodChannel('com.focusguard.app/app_limit');
+        const blockingPlatform = MethodChannel('com.voidblock.app/blocking');
+        const limitPlatform = MethodChannel('com.voidblock.app/app_limit');
 
         await limitPlatform.invokeMethod('createLimit', {
           'name': 'Daily Limit',

@@ -1,6 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:focusguard/services/strict_mode_service.dart';
+import 'package:voidblock/services/strict_mode_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +15,7 @@ void main() {
 
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/strict_mode'),
+        const MethodChannel('com.voidblock.app/strict_mode'),
         (MethodCall methodCall) async {
           methodCalls.add(methodCall);
 
@@ -51,7 +51,7 @@ void main() {
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('com.focusguard.app/strict_mode'),
+        const MethodChannel('com.voidblock.app/strict_mode'),
         null,
       );
     });
@@ -68,7 +68,7 @@ void main() {
       test('returns null on error', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             throw Exception('Failed');
           },
@@ -118,7 +118,7 @@ void main() {
       test('unlock succeeds with correct PIN', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'attemptUnlockSession') {
               final pin = methodCall.arguments['pin'];
@@ -142,7 +142,7 @@ void main() {
       test('returns error on exception', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             throw Exception('Network error');
           },
@@ -172,7 +172,7 @@ void main() {
       test('unlock succeeds with correct PIN', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'attemptUnlockSchedule') {
               final pin = methodCall.arguments['pin'];
@@ -213,7 +213,7 @@ void main() {
       test('confirmCooldownUnlock fails if cooldown not complete', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'confirmCooldownUnlock') {
               return {
@@ -256,7 +256,7 @@ void main() {
       test('attemptUnlock fails for HARD mode session', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'attemptUnlockSession') {
               return {
@@ -281,7 +281,7 @@ void main() {
       test('HARD mode rejects PIN attempts', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'attemptUnlockSession') {
               // HARD mode ignores PIN entirely
@@ -305,7 +305,7 @@ void main() {
       test('HARD mode rejects cooldown confirmation', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'confirmCooldownUnlock') {
               return {
@@ -335,7 +335,7 @@ void main() {
       test('returns null on encryption error', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             throw Exception('Encryption failed');
           },
@@ -350,7 +350,7 @@ void main() {
       test('NONE level - immediate unlock', () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-          const MethodChannel('com.focusguard.app/strict_mode'),
+          const MethodChannel('com.voidblock.app/strict_mode'),
           (MethodCall methodCall) async {
             if (methodCall.method == 'attemptUnlockSession') {
               // NONE level always succeeds

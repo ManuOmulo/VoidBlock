@@ -1,4 +1,4 @@
-# FocusGuard
+# VoidBlock
 
 A powerful Android productivity app built with Flutter that helps you stay focused by blocking distracting apps. Features manual blocking, scheduled sessions, app usage limits, and multiple strict mode levels for enforced focus.
 
@@ -57,7 +57,7 @@ flutter run
 ## 📁 Project Structure
 
 ```
-FocusGuard/
+VoidBlock/
 ├── lib/                          # Flutter source code
 │   ├── core/                     # Core utilities and exports
 │   ├── presentation/             # UI screens and widgets
@@ -81,7 +81,7 @@ FocusGuard/
 │   ├── widgets/                  # Reusable UI components
 │   └── main.dart                 # Application entry point
 │
-├── android/app/src/main/kotlin/com/focusguard/app/  # Native Android
+├── android/app/src/main/kotlin/com/voidblock/app/  # Native Android
 │   ├── channels/                 # MethodChannel implementations
 │   │   ├── BlockingChannel.kt    # Session management
 │   │   ├── ScheduleChannel.kt    # Schedule operations

@@ -618,7 +618,7 @@ class _ManualBlockingScreenState extends State<ManualBlockingScreen> {
       builder: (context) => AlertDialog(
         title: Text('Permissions Required'),
         content: Text(
-            'FocusGuard needs permissions to block apps. Please grant them in the next screen.'),
+            'VoidBlock needs permissions to block apps. Please grant them in the next screen.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
