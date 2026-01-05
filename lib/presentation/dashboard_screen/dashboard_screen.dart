@@ -195,8 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       final mostUsedApps = await analyticsService.getMostUsedApps(limit: 5);
       final appsToBlock = mostUsedApps
           .map((app) => app['packageName'] as String)
-          .where(
-              (pkg) => pkg != 'com.voidblock.app') // Don't block our own app
+          .where((pkg) => pkg != 'com.voidblock.app') // Don't block our own app
           .toList();
 
       if (appsToBlock.isEmpty) {
@@ -228,9 +227,37 @@ class _DashboardScreenState extends State<DashboardScreen>
           _refreshDashboard();
         }
       }
+    } on PlatformException catch (e) {
+      if (mounted) Navigator.pop(context);
+
+      String errorMessage;
+      if (e.code == "ACTIVE_SESSION") {
+        errorMessage =
+            "Failed to start Instant Focus. A blocking session is already active.";
+      } else {
+        errorMessage = "Failed to start Instant Focus.";
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) Navigator.pop(context);
-      print('Error starting instant focus: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to start Instant Focus."),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 

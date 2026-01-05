@@ -30,7 +30,7 @@ class BlockingService {
       return result as bool;
     } on PlatformException catch (e) {
       print('Error starting blocking: ${e.message}');
-      throw Exception('Failed to start blocking: ${e.message}');
+      rethrow;
     }
   }
 

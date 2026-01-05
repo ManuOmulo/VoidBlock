@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/app_export.dart';
 import '../../services/blocking_service.dart';
@@ -580,33 +581,57 @@ class _ManualBlockingScreenState extends State<ManualBlockingScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to start blocking. Please try again.'),
+            content: Text('Failed to start blocking.'),
             backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    } on PlatformException catch (e) {
+      setState(() => _isLoading = false);
+
+      if (e.code == "ACTIVE_SESSION") {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                "Failed to start manual blocking. A blocking session is already active."),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } else if (e.code == "SecurityException" ||
+          e.toString().contains("SecurityException")) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                Text("Permission denied. We need permissions to block apps."),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            duration: Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Fix Permissions',
+              textColor: Colors.white,
+              onPressed: () {
+                Navigator.pushNamed(context, '/permission-onboarding-screen');
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Failed to start blocking."),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
       setState(() => _isLoading = false);
-
-      String errorMessage = 'Error starting blocking: $e';
-      if (e.toString().contains("ACTIVE_SESSION")) {
-        errorMessage = "A blocking session is already active.";
-      } else if (e.toString().contains("SecurityException")) {
-        errorMessage = "Permission denied. Please grant all permissions.";
-      }
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(errorMessage),
+          content: Text("Failed to start blocking."),
           backgroundColor: Theme.of(context).colorScheme.error,
-          duration: Duration(seconds: 4),
-          action: SnackBarAction(
-            label: 'Check Permissions',
-            textColor: Colors.white,
-            onPressed: () {
-              Navigator.pushNamed(context, '/permission-onboarding-screen');
-            },
-          ),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }

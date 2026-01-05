@@ -24,10 +24,7 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
   void initState() {
     super.initState();
     _loadBlockedApps();
-    // Update every 15 seconds for UI sync (minutes only)
-    Timer.periodic(Duration(seconds: 15), (_) {
-      if (mounted) setState(() {});
-    });
+    // No full-widget timer anymore. Time updates are handled by individual widgets.
   }
 
   Future<void> _loadBlockedApps() async {
@@ -51,7 +48,7 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
               "name": appInfo.appName,
               "iconBase64": appInfo.iconBase64,
               "package": appInfo.packageName,
-              "remainingMinutes": _calculateRemainingValue(session),
+              "remainingMinutes": 0, // Calculated dynamically by widget
               "isStrictMode": session['strictMode'] ?? false,
             });
           }
@@ -69,6 +66,7 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
           setState(() {
             _blockedApps = [];
             _isLoading = false;
+            _currentSession = null;
           });
         }
       }
@@ -78,41 +76,8 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
     }
   }
 
-  int _calculateRemainingValue(Map<String, dynamic> session) {
-    final String type = session['type'] as String? ?? 'manual';
-    final int now = DateTime.now().millisecondsSinceEpoch;
-
-    if (type == 'schedule') {
-      final int endTime = session['endTime'] as int? ?? 0;
-      final int remainingMs = endTime - now;
-      return remainingMs > 0 ? (remainingMs / (60 * 1000)).floor() : 0;
-    }
-
-    // Manual session logic
-    final int startTime = session['startTime'] as int? ?? 0;
-    final int durationMinutes = session['durationMinutes'] as int? ?? 0;
-    final bool isPaused = session['isPaused'] as bool? ?? false;
-    final int? pausedAt = session['pausedAt'] as int?;
-    final int accumulatedPausedMs = session['accumulatedPausedMs'] as int? ?? 0;
-
-    if (durationMinutes <= 0) return 0;
-
-    final int totalElapsedMs;
-    if (isPaused && pausedAt != null) {
-      totalElapsedMs = pausedAt - startTime - accumulatedPausedMs;
-    } else {
-      totalElapsedMs = now - startTime - accumulatedPausedMs;
-    }
-
-    final int totalDurationMs = durationMinutes * 60 * 1000;
-    final int remainingMs = totalDurationMs - totalElapsedMs;
-
-    return remainingMs > 0 ? (remainingMs / (60 * 1000)).floor() : 0;
-  }
-
   /// Public method to refresh blocked apps list
   Future<void> refresh() async {
-    // Silent refresh - don't show loader if we already have data
     if (_blockedApps.isEmpty) {
       setState(() => _isLoading = true);
     }
@@ -219,11 +184,6 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
     Map<String, dynamic> app,
     Map<String, dynamic>? fullSession,
   ) {
-    // Recalculate if possible for smooth ticking
-    final remaining = fullSession != null
-        ? _calculateRemainingValue(fullSession)
-        : app["remainingMinutes"];
-
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -258,24 +218,17 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.access_time_filled_rounded,
-                      size: 10,
+                // Use isolated widget for time updates
+                if (fullSession != null)
+                  _BlockedAppTimer(
+                    session: fullSession,
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 10,
                     ),
-                    SizedBox(width: 4),
-                    Text(
-                      '${remaining}m left',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ],
-                ),
+                    iconColor: theme.colorScheme.primary,
+                  ),
               ],
             ),
           ),
@@ -329,6 +282,112 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
         size: 16,
         color: theme.colorScheme.primary.withValues(alpha: 0.5),
       ),
+    );
+  }
+}
+
+/// A standalone widget that updates its own time every minute
+/// prevented parent redraws
+class _BlockedAppTimer extends StatefulWidget {
+  final Map<String, dynamic> session;
+  final TextStyle? style;
+  final Color iconColor;
+
+  const _BlockedAppTimer({
+    Key? key,
+    required this.session,
+    this.style,
+    required this.iconColor,
+  }) : super(key: key);
+
+  @override
+  State<_BlockedAppTimer> createState() => _BlockedAppTimerState();
+}
+
+class _BlockedAppTimerState extends State<_BlockedAppTimer> {
+  late Timer _timer;
+  int _remainingMinutes = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateTime();
+    // Update every 30 seconds to be safe
+    _timer = Timer.periodic(Duration(seconds: 30), (_) {
+      if (mounted) _updateTime();
+    });
+  }
+
+  void _updateTime() {
+    final newValue = _calculateRemainingValue(widget.session);
+    if (newValue != _remainingMinutes) {
+      setState(() {
+        _remainingMinutes = newValue;
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(_BlockedAppTimer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.session != widget.session) {
+      _updateTime();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  int _calculateRemainingValue(Map<String, dynamic> session) {
+    final String type = session['type'] as String? ?? 'manual';
+    final int now = DateTime.now().millisecondsSinceEpoch;
+
+    if (type == 'schedule') {
+      final int endTime = session['endTime'] as int? ?? 0;
+      final int remainingMs = endTime - now;
+      return remainingMs > 0 ? (remainingMs / (60 * 1000)).floor() : 0;
+    }
+
+    // Manual session logic
+    final int startTime = session['startTime'] as int? ?? 0;
+    final int durationMinutes = session['durationMinutes'] as int? ?? 0;
+    final bool isPaused = session['isPaused'] as bool? ?? false;
+    final int? pausedAt = session['pausedAt'] as int?;
+    final int accumulatedPausedMs = session['accumulatedPausedMs'] as int? ?? 0;
+
+    if (durationMinutes <= 0) return 0;
+
+    final int totalElapsedMs;
+    if (isPaused && pausedAt != null) {
+      totalElapsedMs = pausedAt - startTime - accumulatedPausedMs;
+    } else {
+      totalElapsedMs = now - startTime - accumulatedPausedMs;
+    }
+
+    final int totalDurationMs = durationMinutes * 60 * 1000;
+    final int remainingMs = totalDurationMs - totalElapsedMs;
+
+    return remainingMs > 0 ? (remainingMs / (60 * 1000)).floor() : 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          Icons.access_time_filled_rounded,
+          size: 10,
+          color: widget.iconColor,
+        ),
+        SizedBox(width: 4),
+        Text(
+          '${_remainingMinutes}m left',
+          style: widget.style,
+        ),
+      ],
     );
   }
 }

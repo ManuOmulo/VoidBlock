@@ -267,6 +267,8 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
                               ),
                             ),
                           ),
+                        if (isPaused && _activeSession!['type'] != 'schedule')
+                          SizedBox(width: 12),
                         if (!isPaused && strictModeLevel != 'HARD')
                           SizedBox(width: 12),
                         if (_activeSession!['type'] != 'schedule')
