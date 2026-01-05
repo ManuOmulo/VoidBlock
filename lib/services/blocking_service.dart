@@ -56,6 +56,22 @@ class BlockingService {
     }
   }
 
+  /// Get a unified list of ALL currently blocked apps from all sources
+  Future<List<Map<String, dynamic>>> getUnifiedBlockedApps() async {
+    try {
+      final result = await platform.invokeMethod('getAllBlockedApps');
+      if (result != null) {
+        return List<Map<String, dynamic>>.from(
+          (result as List).map((item) => Map<String, dynamic>.from(item)),
+        );
+      }
+      return [];
+    } on PlatformException catch (e) {
+      print('Error getting unified blocked apps: ${e.message}');
+      return [];
+    }
+  }
+
   /// Check if a specific app is currently blocked
   Future<bool> isAppBlocked(String packageName) async {
     try {

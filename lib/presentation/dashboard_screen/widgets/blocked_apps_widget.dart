@@ -17,58 +17,48 @@ class BlockedAppsWidget extends StatefulWidget {
 
 class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
   List<Map<String, dynamic>> _blockedApps = [];
-  Map<String, dynamic>? _currentSession;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _loadBlockedApps();
-    // No full-widget timer anymore. Time updates are handled by individual widgets.
   }
 
   Future<void> _loadBlockedApps() async {
     try {
       final blockingService = BlockingService();
       final analyticsService = AnalyticsService();
-      final session = await blockingService.getActiveSession();
 
-      if (session != null && session['blockedApps'] != null) {
-        final List<dynamic> apps = session['blockedApps'];
-        final List<Map<String, dynamic>> loadedApps = [];
+      // Get unified list from all sources (manual, schedule, limits)
+      final rawApps = await blockingService.getUnifiedBlockedApps();
+      final List<Map<String, dynamic>> loadedApps = [];
 
-        for (final app in apps) {
-          final packageName = app['packageName'];
-          final appInfo =
-              await analyticsService.getAppInfo(packageName.toString());
+      for (final app in rawApps) {
+        final packageName = app['packageName'];
+        final appInfo =
+            await analyticsService.getAppInfo(packageName.toString());
 
-          if (appInfo != null) {
-            loadedApps.add({
-              "id": session['id'],
-              "name": appInfo.appName,
-              "iconBase64": appInfo.iconBase64,
-              "package": appInfo.packageName,
-              "remainingMinutes": 0, // Calculated dynamically by widget
-              "isStrictMode": session['strictMode'] ?? false,
-            });
-          }
-        }
-
-        if (mounted) {
-          setState(() {
-            _blockedApps = loadedApps;
-            _currentSession = session;
-            _isLoading = false;
+        if (appInfo != null) {
+          loadedApps.add({
+            "name": appInfo.appName,
+            "iconBase64": appInfo.iconBase64,
+            "package": appInfo.packageName,
+            "remainingMinutes": app['remainingMinutes'] ?? 0,
+            "isStrictMode": app['isStrictMode'] ?? false,
+            "source": app['source'],
+            // Calculate a local deadline for the UI timer to count down from
+            "uiDeadline": DateTime.now()
+                .add(Duration(minutes: app['remainingMinutes'] ?? 0)),
           });
         }
-      } else {
-        if (mounted) {
-          setState(() {
-            _blockedApps = [];
-            _isLoading = false;
-            _currentSession = null;
-          });
-        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _blockedApps = loadedApps;
+          _isLoading = false;
+        });
       }
     } catch (e) {
       print('Error loading blocked apps: $e');
@@ -87,6 +77,10 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // Filter out apps with 0 or less minutes remaining to keep list clean
+    // (though backend usually filters them, good to be safe)
+    final appsToShow = _blockedApps;
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: 8),
@@ -116,7 +110,7 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
                   padding: const EdgeInsets.all(20.0),
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ))
-              : _blockedApps.isEmpty
+              : appsToShow.isEmpty
                   ? _buildEmptyState(theme)
                   : GridView.builder(
                       shrinkWrap: true,
@@ -128,13 +122,12 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
                         crossAxisSpacing: 10,
                         childAspectRatio: 2.3,
                       ),
-                      itemCount: _blockedApps.length,
+                      itemCount: appsToShow.length,
                       itemBuilder: (context, index) {
                         return _buildBlockedAppChip(
                           context,
                           theme,
-                          _blockedApps[index],
-                          _currentSession,
+                          appsToShow[index],
                         );
                       },
                     ),
@@ -182,7 +175,6 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
     BuildContext context,
     ThemeData theme,
     Map<String, dynamic> app,
-    Map<String, dynamic>? fullSession,
   ) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -218,21 +210,20 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                // Use isolated widget for time updates
-                if (fullSession != null)
-                  _BlockedAppTimer(
-                    session: fullSession,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 10,
-                    ),
-                    iconColor: theme.colorScheme.primary,
+                // Timer
+                _BlockedAppTimer(
+                  deadline: app["uiDeadline"] as DateTime,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
                   ),
+                  iconColor: theme.colorScheme.primary,
+                ),
               ],
             ),
           ),
-          if (app["isStrictMode"]) ...[
+          if (app["isStrictMode"] == true) ...[
             SizedBox(width: 8),
             Container(
               padding: EdgeInsets.all(4),
@@ -287,15 +278,14 @@ class BlockedAppsWidgetState extends State<BlockedAppsWidget> {
 }
 
 /// A standalone widget that updates its own time every minute
-/// prevented parent redraws
 class _BlockedAppTimer extends StatefulWidget {
-  final Map<String, dynamic> session;
+  final DateTime deadline;
   final TextStyle? style;
   final Color iconColor;
 
   const _BlockedAppTimer({
     Key? key,
-    required this.session,
+    required this.deadline,
     this.style,
     required this.iconColor,
   }) : super(key: key);
@@ -312,14 +302,20 @@ class _BlockedAppTimerState extends State<_BlockedAppTimer> {
   void initState() {
     super.initState();
     _updateTime();
-    // Update every 30 seconds to be safe
+    // Update every 30 seconds
     _timer = Timer.periodic(Duration(seconds: 30), (_) {
       if (mounted) _updateTime();
     });
   }
 
   void _updateTime() {
-    final newValue = _calculateRemainingValue(widget.session);
+    final now = DateTime.now();
+    final diff = widget.deadline.difference(now);
+    final minutes = diff.inMinutes; // Can be negative if passed
+
+    // If it's 0 or negative, we clamp to 0 (or could show 'Done')
+    final newValue = minutes > 0 ? minutes : 0;
+
     if (newValue != _remainingMinutes) {
       setState(() {
         _remainingMinutes = newValue;
@@ -330,7 +326,7 @@ class _BlockedAppTimerState extends State<_BlockedAppTimer> {
   @override
   void didUpdateWidget(_BlockedAppTimer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.session != widget.session) {
+    if (oldWidget.deadline != widget.deadline) {
       _updateTime();
     }
   }
@@ -339,38 +335,6 @@ class _BlockedAppTimerState extends State<_BlockedAppTimer> {
   void dispose() {
     _timer.cancel();
     super.dispose();
-  }
-
-  int _calculateRemainingValue(Map<String, dynamic> session) {
-    final String type = session['type'] as String? ?? 'manual';
-    final int now = DateTime.now().millisecondsSinceEpoch;
-
-    if (type == 'schedule') {
-      final int endTime = session['endTime'] as int? ?? 0;
-      final int remainingMs = endTime - now;
-      return remainingMs > 0 ? (remainingMs / (60 * 1000)).floor() : 0;
-    }
-
-    // Manual session logic
-    final int startTime = session['startTime'] as int? ?? 0;
-    final int durationMinutes = session['durationMinutes'] as int? ?? 0;
-    final bool isPaused = session['isPaused'] as bool? ?? false;
-    final int? pausedAt = session['pausedAt'] as int?;
-    final int accumulatedPausedMs = session['accumulatedPausedMs'] as int? ?? 0;
-
-    if (durationMinutes <= 0) return 0;
-
-    final int totalElapsedMs;
-    if (isPaused && pausedAt != null) {
-      totalElapsedMs = pausedAt - startTime - accumulatedPausedMs;
-    } else {
-      totalElapsedMs = now - startTime - accumulatedPausedMs;
-    }
-
-    final int totalDurationMs = durationMinutes * 60 * 1000;
-    final int remainingMs = totalDurationMs - totalElapsedMs;
-
-    return remainingMs > 0 ? (remainingMs / (60 * 1000)).floor() : 0;
   }
 
   @override

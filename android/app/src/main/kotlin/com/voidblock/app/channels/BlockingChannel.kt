@@ -73,6 +73,10 @@ class BlockingChannel(private val context: Context) : MethodChannel.MethodCallHa
             "resumeBlocking" -> {
                 resumeBlocking(result)
             }
+
+            "getAllBlockedApps" -> {
+                getAllBlockedApps(result)
+            }
             
             else -> result.notImplemented()
         }
@@ -694,8 +698,142 @@ class BlockingChannel(private val context: Context) : MethodChannel.MethodCallHa
             }
         }
     }
+
+    /**
+     * Get a unified list of ALL currently blocked apps from all sources
+     */
+    private fun getAllBlockedApps(result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                val blockedAppsMap = mutableMapOf<String, MutableMap<String, Any>>()
+                val now = System.currentTimeMillis()
+
+                // 1. Manual Session
+                val manualSession = withContext(Dispatchers.IO) {
+                    database.blockingSessionDao().getActiveSession()
+                }
+                if (manualSession != null && manualSession.isActive && !manualSession.isPaused) {
+                    val apps = withContext(Dispatchers.IO) {
+                        database.sessionBlockedAppDao().getAppsForSession(manualSession.id)
+                    }
+                    val remaining = calculateRemainingMinutes(manualSession)
+                    
+                    apps.forEach { app ->
+                        blockedAppsMap[app.packageName] = mutableMapOf(
+                            "packageName" to app.packageName,
+                            "appName" to app.appName,
+                            "remainingMinutes" to remaining,
+                            "source" to "manual",
+                            "isStrictMode" to manualSession.isStrictMode
+                        )
+                    }
+                }
+
+                // 2. Active Schedules
+                val schedules = withContext(Dispatchers.IO) {
+                    database.scheduleDao().getActiveSchedulesSync()
+                }
+                
+                schedules.forEach { schedule ->
+                    // Check if schedule is active NOW
+                    val calendar = java.util.Calendar.getInstance()
+                    val currentMinutes = calendar.get(java.util.Calendar.HOUR_OF_DAY) * 60 + calendar.get(java.util.Calendar.MINUTE)
+                    val currentDay = calendar.get(java.util.Calendar.DAY_OF_WEEK) - 1 // 0-6
+                    
+                    // Parse days
+                    val days = try {
+                        org.json.JSONArray(schedule.daysOfWeek).let { arr ->
+                            (0 until arr.length()).map { arr.getInt(it) }
+                        }
+                    } catch (e: Exception) { emptyList<Int>() }
+                    
+                    if (days.contains(currentDay)) {
+                        val startParts = schedule.startTime.split(":")
+                        val startMins = startParts[0].toInt() * 60 + startParts[1].toInt()
+                        
+                        val endParts = schedule.endTime.split(":")
+                        val endMins = endParts[0].toInt() * 60 + endParts[1].toInt()
+                        
+                        val isActive = if (endMins < startMins) {
+                            currentMinutes >= startMins || currentMinutes < endMins
+                        } else {
+                            currentMinutes >= startMins && currentMinutes < endMins
+                        }
+                        
+                        if (isActive) {
+                            // Calculate remaining for this schedule
+                            var remainingMins = 0
+                            if (endMins < currentMinutes) {
+                                // Overnight ending tomorrow
+                                remainingMins = (24 * 60 - currentMinutes) + endMins
+                            } else {
+                                remainingMins = endMins - currentMinutes
+                            }
+                            
+                            val scheApps = withContext(Dispatchers.IO) {
+                                database.blockedAppDao().getBlockedAppsForScheduleSync(schedule.id)
+                            }
+                            
+                            scheApps.forEach { app ->
+                                val existing = blockedAppsMap[app.packageName]
+                                val existingRemaining = (existing?.get("remainingMinutes") as? Int) ?: 0
+                                
+                                // Taking the MAX remaining time if blocked by multiple sources
+                                if (remainingMins > existingRemaining) {
+                                    blockedAppsMap[app.packageName] = mutableMapOf(
+                                        "packageName" to app.packageName,
+                                        "appName" to app.appName,
+                                        "remainingMinutes" to remainingMins,
+                                        "source" to "schedule",
+                                        "isStrictMode" to schedule.isStrictMode
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. App Limits
+                // Query Active Focus Sessions for Limits using correct DAO method name 'getActiveSessions'
+                val activeLimitSessions = withContext(Dispatchers.IO) {
+                    database.focusSessionDao().getActiveSessions()
+                }.filter { it.type == "LIMIT" }
+                
+                activeLimitSessions.forEach { session ->
+                     val limitId = session.relatedId
+                     if (limitId != null) {
+                         val limitApps = withContext(Dispatchers.IO) {
+                             database.appLimitDao().getPackageNamesForLimit(limitId)
+                         }
+                         
+                         // Time to midnight calculation
+                         val cal = java.util.Calendar.getInstance()
+                         val nowMins = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+                         val minsToMidnight = (24 * 60) - nowMins
+                         
+                         limitApps.forEach { pkg ->
+                             val appName = getAppName(pkg)
+                             
+                             blockedAppsMap[pkg] = mutableMapOf(
+                                "packageName" to pkg,
+                                "appName" to appName,
+                                "remainingMinutes" to minsToMidnight,
+                                "source" to "limit",
+                                "isStrictMode" to true 
+                            )
+                         }
+                     }
+                }
+
+                result.success(blockedAppsMap.values.toList())
+            } catch (e: Exception) {
+                e.printStackTrace()
+                result.error("GET_ALL_APPS_ERROR", e.message, null)
+            }
+        }
+    }
     
-    // ... (calculateRemainingMinutes, getAppName remain same) ...
+    // Private helpers
     
     /**
      * Calculate remaining minutes for a session
