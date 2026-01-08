@@ -87,6 +87,9 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
           'name': s.name,
           'isActive': s.isActive,
           'isStrictMode': s.isStrictMode,
+          'strictModeLevel': s.strictModeLevel,
+          'strictModePin': s.strictModePin,
+          'strictModeCooldownMinutes': s.strictModeCooldownMinutes,
           'isRecurring': s.daysOfWeek.isNotEmpty,
           'nextActivation': _getNextActivationText(s),
           'appCount': s.blockedApps.length,
@@ -429,37 +432,6 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
     Navigator.pushNamed(context, '/dashboard-screen');
   }
 
-  void _testRun(int scheduleId) {
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Starting test run...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-    // Implement test run logic if needed
-  }
-
-  void _shareSchedule(int scheduleId) {
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Sharing schedule configuration...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _exportSchedule(int scheduleId) {
-    HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Exporting schedule settings...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
   void _createSchedule() {
     Navigator.pushNamed(context, '/schedule-creator-screen')
         .then((_) => _loadSchedules());
@@ -728,11 +700,6 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
                                               _viewStats(scheduleId),
                                           onDelete: () =>
                                               _deleteSchedule(scheduleId),
-                                          onTestRun: () => _testRun(scheduleId),
-                                          onShare: () =>
-                                              _shareSchedule(scheduleId),
-                                          onExport: () =>
-                                              _exportSchedule(scheduleId),
                                           onToggle: (value) => _toggleSchedule(
                                               scheduleId, value),
                                         );

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
 import '../../../core/app_export.dart';
+import '../../../services/strict_mode_service.dart';
+import '../../strict_mode_setup/pin_entry_dialog.dart';
 
 /// Individual schedule card with swipe actions and status indicators
 class ScheduleCardWidget extends StatelessWidget {
@@ -10,9 +12,6 @@ class ScheduleCardWidget extends StatelessWidget {
   final VoidCallback onDuplicate;
   final VoidCallback onViewStats;
   final VoidCallback onDelete;
-  final VoidCallback onTestRun;
-  final VoidCallback onShare;
-  final VoidCallback onExport;
   final Function(bool) onToggle;
   const ScheduleCardWidget({
     Key? key,
@@ -21,9 +20,6 @@ class ScheduleCardWidget extends StatelessWidget {
     required this.onDuplicate,
     required this.onViewStats,
     required this.onDelete,
-    required this.onTestRun,
-    required this.onShare,
-    required this.onExport,
     required this.onToggle,
   }) : super(key: key);
 
@@ -317,35 +313,13 @@ class ScheduleCardWidget extends StatelessWidget {
             ),
             ListTile(
               leading: CustomIconWidget(
-                iconName: 'play_arrow',
+                iconName: 'edit',
                 color: theme.colorScheme.primary,
               ),
-              title: Text('Test Run'),
+              title: Text('Edit Schedule'),
               onTap: () {
                 Navigator.pop(context);
-                onTestRun();
-              },
-            ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'share',
-                color: theme.colorScheme.primary,
-              ),
-              title: Text('Share Configuration'),
-              onTap: () {
-                Navigator.pop(context);
-                onShare();
-              },
-            ),
-            ListTile(
-              leading: CustomIconWidget(
-                iconName: 'download',
-                color: theme.colorScheme.primary,
-              ),
-              title: Text('Export Settings'),
-              onTap: () {
-                Navigator.pop(context);
-                onExport();
+                _handleEdit(context);
               },
             ),
             SizedBox(height: 16),
@@ -353,6 +327,139 @@ class ScheduleCardWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _handleEdit(BuildContext context) async {
+    final isStrictMode = schedule['isStrictMode'] as bool? ?? false;
+
+    if (!isStrictMode) {
+      onEdit();
+      return;
+    }
+
+    final level = schedule['strictModeLevel'] as String? ?? 'NONE';
+    final strictModeService = StrictModeService();
+
+    if (level == 'HARD') {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Settings Locked'),
+          content:
+              Text('This schedule is in Hard Mode. Settings cannot be edited.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (level == 'MEDIUM') {
+      final scheduleId = schedule['id'] as int;
+      // Check cooldown - this part requires logic that might be complex to put in a card
+      // Ideally we would have a 'getScheduleCooldownStatus' but for now let's implement the flow
+      // Simplification: For Medium, we just enforce the cooldown start flow
+      // NOTE: This assumes we can't easily check existing cooldown state without state management.
+      // Better approach: Try to edit, if it's medium, we start the cooldown process.
+
+      // Since we don't have the cooldown state here easily, we'll just show the cooldown dialog
+      // This matches the implementation in ActiveSessionWidget for consistency
+
+      // First, check if we are ALREADY in cooldown?
+      // Since we can't easily, we will show a dialog explaining the cooldown
+
+      /*
+      // SIMPLIFICATION:
+      // If Medium, we rely on the user to wait. 
+      // But user requested: "wait for the cooldown period that was set to elapse before accessing"
+      // This implies we need to START the cooldown.
+      */
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Strict Mode Active'),
+          content: Text(
+            'This schedule is in Medium Strict Mode. You must wait the cooldown period to edit settings.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                // Start cooldown
+                final success =
+                    await strictModeService.startScheduleCooldown(scheduleId);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Cooldown started. You will be notified when you can edit.')),
+                  );
+                } else {
+                  // If it failed, it might mean we are already in cooldown or ready to unlock
+                  // Let's try to "confirm" unlock just in case
+                  final unlockResult = await strictModeService
+                      .confirmScheduleCooldownUnlock(scheduleId);
+                  if (unlockResult['success'] == true) {
+                    onEdit();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Wait for cooldown to finish.')),
+                    );
+                  }
+                }
+              },
+              child: Text('Start Cooldown / Unlock'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    if (level == 'EASY') {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (context) => PinEntryDialog(
+          remainingAttempts: 5, // Hardcoded for now
+          lockoutSeconds: 0,
+        ),
+      );
+
+      if (result != null) {
+        final scheduleId = schedule['id'] as int;
+
+        final unlockResult = await strictModeService.attemptUnlockSchedule(
+          scheduleId: scheduleId,
+          pin: result,
+        );
+
+        if (unlockResult['success'] == true) {
+          onEdit();
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(unlockResult['reason'] ?? 'Incorrect PIN'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+        }
+      }
+      return;
+    }
+
+    // Fallback
+    onEdit();
   }
 
   void _showConflictResolution(BuildContext context) {

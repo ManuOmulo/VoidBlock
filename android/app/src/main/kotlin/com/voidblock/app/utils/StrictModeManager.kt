@@ -173,6 +173,7 @@ private suspend fun ensurePreferencesExist() {
         schedule: ScheduleEntity,
         inputPin: String?
     ): UnlockAttemptResult {
+        ensurePreferencesExist()
         val preferences = database.strictModePreferencesDao().getPreferencesSync()
             ?: return UnlockAttemptResult(false, "No preferences found")
         

@@ -31,6 +31,7 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
       TextEditingController();
 
   // Schedule configuration state
+  int? _scheduleId;
   int _selectedAppsCount = 0;
   List<Map<String, dynamic>> _selectedApps = [];
   TimeOfDay? _startTime;
@@ -42,6 +43,8 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
   int? _strictModeCooldownMinutes;
   bool _notificationsEnabled = true;
   String _selectedPattern = 'custom';
+  bool _isEditing = false;
+  bool _isLoading = false;
 
   // UI state
   bool _scheduleDetailsExpanded = true;
@@ -59,6 +62,82 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
     super.initState();
     _nameController.addListener(_onFormChanged);
     _motivationalMessageController.addListener(_onFormChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args != null && args is int && !_isEditing) {
+      _scheduleId = args;
+      _isEditing = true;
+      _loadScheduleDetails(args);
+    }
+  }
+
+  Future<void> _loadScheduleDetails(int id) async {
+    setState(() => _isLoading = true);
+    try {
+      final schedule = await _scheduleService.getScheduleById(id);
+      if (schedule != null) {
+        _nameController.text = schedule.name;
+        if (schedule.motivationalMessage != null) {
+          _motivationalMessageController.text = schedule.motivationalMessage!;
+        }
+
+        final startParts = schedule.startTime.split(':');
+        _startTime = TimeOfDay(
+            hour: int.parse(startParts[0]), minute: int.parse(startParts[1]));
+
+        final endParts = schedule.endTime.split(':');
+        _endTime = TimeOfDay(
+            hour: int.parse(endParts[0]), minute: int.parse(endParts[1]));
+
+        _selectedDays = schedule.daysOfWeek.toSet();
+        _strictModeEnabled = schedule.isStrictMode;
+        if (_strictModeEnabled) {
+          _strictModeLevel = schedule.strictModeLevel;
+          _strictModePin = schedule.strictModePin;
+          _strictModeCooldownMinutes = schedule.strictModeCooldownMinutes;
+        }
+        _notificationsEnabled = schedule.notificationsEnabled;
+
+        // Load apps
+        final List<Map<String, dynamic>> loadedApps = [];
+        for (var pkg in schedule.blockedApps) {
+          final appInfo = await _analyticsService.getAppInfo(pkg);
+          if (appInfo != null) {
+            loadedApps.add({
+              'packageName': appInfo.packageName,
+              'name': appInfo.appName,
+              'icon': appInfo.iconBase64 != null
+                  ? 'data:image/png;base64,${appInfo.iconBase64}'
+                  : null,
+            });
+          }
+        }
+        _selectedApps = loadedApps;
+        _selectedAppsCount = loadedApps.length;
+
+        // Determine pattern
+        if (_selectedDays.length == 7)
+          _selectedPattern = 'daily';
+        else if (_selectedDays.length == 5 &&
+            !_selectedDays.contains(6) &&
+            !_selectedDays.contains(0))
+          _selectedPattern = 'weekdays';
+        else if (_selectedDays.length == 2 &&
+            _selectedDays.contains(6) &&
+            _selectedDays.contains(0))
+          _selectedPattern = 'weekends';
+        else
+          _selectedPattern = 'custom';
+      }
+    } catch (e) {
+      print('Error loading schedule: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -233,6 +312,7 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
 
       // Create schedule object
       final schedule = Schedule(
+        id: _scheduleId,
         name: _nameController.text.trim(),
         startTime:
             '${_startTime!.hour.toString().padLeft(2, '0')}:${_startTime!.minute.toString().padLeft(2, '0')}',
@@ -252,7 +332,13 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
       );
 
       // Call service to create schedule
-      final success = await _scheduleService.createSchedule(schedule);
+      // Call service to create or update schedule
+      bool success;
+      if (_isEditing) {
+        success = await _scheduleService.updateSchedule(schedule);
+      } else {
+        success = await _scheduleService.createSchedule(schedule);
+      }
 
       // Close loading dialog
       if (mounted) Navigator.pop(context);
@@ -269,7 +355,9 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
                     size: 20,
                   ),
                   SizedBox(width: 3.w),
-                  Text('Schedule created successfully!'),
+                  Text(_isEditing
+                      ? 'Schedule updated successfully!'
+                      : 'Schedule created successfully!'),
                 ],
               ),
               backgroundColor: Theme.of(context).colorScheme.secondary,
@@ -321,7 +409,7 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
       onWillPop: _onWillPop,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Create Schedule'),
+          title: Text(_isEditing ? 'Edit Schedule' : 'Create Schedule'),
           leading: IconButton(
             icon: CustomIconWidget(
               iconName: 'arrow_back',
@@ -358,155 +446,162 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
             SizedBox(width: 2.w),
           ],
         ),
-        body: Column(
-          children: [
-            LinearProgressIndicator(
-              value: _calculateProgress(),
-              backgroundColor: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.3),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.primary,
+        body: _isLoading
+            ? Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  LinearProgressIndicator(
+                    value: _calculateProgress(),
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.3),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      theme.colorScheme.primary,
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          SizedBox(height: 2.h),
+                          ScheduleDetailsSection(
+                            nameController: _nameController,
+                            characterCount: _nameController.text.length,
+                            maxCharacters: 50,
+                            suggestedNames: _getSuggestedNames(),
+                            onSuggestionTap: _handleSuggestionTap,
+                            isExpanded: _scheduleDetailsExpanded,
+                            onToggleExpand: () {
+                              setState(() {
+                                _scheduleDetailsExpanded =
+                                    !_scheduleDetailsExpanded;
+                              });
+                            },
+                          ),
+                          AppSelectionSection(
+                            selectedAppsCount: _selectedAppsCount,
+                            selectedApps: _selectedApps,
+                            onChangeApps: _handleChangeApps,
+                            isExpanded: _appSelectionExpanded,
+                            onToggleExpand: () {
+                              setState(() {
+                                _appSelectionExpanded = !_appSelectionExpanded;
+                              });
+                            },
+                          ),
+                          TimeConfigurationSection(
+                            startTime: _startTime,
+                            endTime: _endTime,
+                            selectedDays: _selectedDays,
+                            onStartTimeChanged: (time) {
+                              setState(() {
+                                _startTime = time;
+                                _hasUnsavedChanges = true;
+                              });
+                            },
+                            onEndTimeChanged: (time) {
+                              setState(() {
+                                _endTime = time;
+                                _hasUnsavedChanges = true;
+                              });
+                            },
+                            onDayToggle: _handleDayToggle,
+                            isExpanded: _timeConfigExpanded,
+                            onToggleExpand: () {
+                              setState(() {
+                                _timeConfigExpanded = !_timeConfigExpanded;
+                              });
+                            },
+                          ),
+                          TimelinePreviewWidget(
+                            startTime: _startTime,
+                            endTime: _endTime,
+                            selectedDays: _selectedDays,
+                          ),
+                          RecurringScheduleSection(
+                            selectedPattern: _selectedPattern,
+                            onPatternChanged: _handlePatternChanged,
+                            isExpanded: _recurringPatternExpanded,
+                            onToggleExpand: () {
+                              setState(() {
+                                _recurringPatternExpanded =
+                                    !_recurringPatternExpanded;
+                              });
+                            },
+                          ),
+                          AdvancedOptionsSection(
+                            strictModeEnabled: _strictModeEnabled,
+                            onStrictModeChanged: (value) async {
+                              if (value) {
+                                // Show strict mode setup dialog
+                                final result =
+                                    await showDialog<Map<String, dynamic>>(
+                                  context: context,
+                                  builder: (context) => StrictModeSetupDialog(
+                                    currentLevel: _strictModeLevel,
+                                    currentPin: null,
+                                    currentCooldownMinutes:
+                                        _strictModeCooldownMinutes,
+                                  ),
+                                );
+
+                                if (result != null) {
+                                  final level = result['level'] as String;
+                                  final pin = result['pin'] as String?;
+                                  final cooldownMinutes =
+                                      result['cooldownMinutes'] as int?;
+
+                                  // Encrypt PIN if provided
+                                  String? encryptedPin;
+                                  if (pin != null && pin.isNotEmpty) {
+                                    final strictModeService =
+                                        StrictModeService();
+                                    encryptedPin =
+                                        await strictModeService.encryptPin(pin);
+                                  }
+
+                                  setState(() {
+                                    _strictModeEnabled = level != 'NONE';
+                                    _strictModeLevel = level;
+                                    _strictModePin = encryptedPin;
+                                    _strictModeCooldownMinutes =
+                                        cooldownMinutes;
+                                    _hasUnsavedChanges = true;
+                                  });
+                                }
+                              } else {
+                                setState(() {
+                                  _strictModeEnabled = false;
+                                  _strictModeLevel = 'NONE';
+                                  _strictModePin = null;
+                                  _strictModeCooldownMinutes = null;
+                                  _hasUnsavedChanges = true;
+                                });
+                              }
+                            },
+                            motivationalMessageController:
+                                _motivationalMessageController,
+                            notificationsEnabled: _notificationsEnabled,
+                            onNotificationsChanged: (value) {
+                              setState(() {
+                                _notificationsEnabled = value;
+                                _hasUnsavedChanges = true;
+                              });
+                            },
+                            isExpanded: _advancedOptionsExpanded,
+                            onToggleExpand: () {
+                              setState(() {
+                                _advancedOptionsExpanded =
+                                    !_advancedOptionsExpanded;
+                              });
+                            },
+                          ),
+                          SizedBox(height: 10.h),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    SizedBox(height: 2.h),
-                    ScheduleDetailsSection(
-                      nameController: _nameController,
-                      characterCount: _nameController.text.length,
-                      maxCharacters: 50,
-                      suggestedNames: _getSuggestedNames(),
-                      onSuggestionTap: _handleSuggestionTap,
-                      isExpanded: _scheduleDetailsExpanded,
-                      onToggleExpand: () {
-                        setState(() {
-                          _scheduleDetailsExpanded = !_scheduleDetailsExpanded;
-                        });
-                      },
-                    ),
-                    AppSelectionSection(
-                      selectedAppsCount: _selectedAppsCount,
-                      selectedApps: _selectedApps,
-                      onChangeApps: _handleChangeApps,
-                      isExpanded: _appSelectionExpanded,
-                      onToggleExpand: () {
-                        setState(() {
-                          _appSelectionExpanded = !_appSelectionExpanded;
-                        });
-                      },
-                    ),
-                    TimeConfigurationSection(
-                      startTime: _startTime,
-                      endTime: _endTime,
-                      selectedDays: _selectedDays,
-                      onStartTimeChanged: (time) {
-                        setState(() {
-                          _startTime = time;
-                          _hasUnsavedChanges = true;
-                        });
-                      },
-                      onEndTimeChanged: (time) {
-                        setState(() {
-                          _endTime = time;
-                          _hasUnsavedChanges = true;
-                        });
-                      },
-                      onDayToggle: _handleDayToggle,
-                      isExpanded: _timeConfigExpanded,
-                      onToggleExpand: () {
-                        setState(() {
-                          _timeConfigExpanded = !_timeConfigExpanded;
-                        });
-                      },
-                    ),
-                    TimelinePreviewWidget(
-                      startTime: _startTime,
-                      endTime: _endTime,
-                      selectedDays: _selectedDays,
-                    ),
-                    RecurringScheduleSection(
-                      selectedPattern: _selectedPattern,
-                      onPatternChanged: _handlePatternChanged,
-                      isExpanded: _recurringPatternExpanded,
-                      onToggleExpand: () {
-                        setState(() {
-                          _recurringPatternExpanded =
-                              !_recurringPatternExpanded;
-                        });
-                      },
-                    ),
-                    AdvancedOptionsSection(
-                      strictModeEnabled: _strictModeEnabled,
-                      onStrictModeChanged: (value) async {
-                        if (value) {
-                          // Show strict mode setup dialog
-                          final result = await showDialog<Map<String, dynamic>>(
-                            context: context,
-                            builder: (context) => StrictModeSetupDialog(
-                              currentLevel: _strictModeLevel,
-                              currentPin: null,
-                              currentCooldownMinutes:
-                                  _strictModeCooldownMinutes,
-                            ),
-                          );
-
-                          if (result != null) {
-                            final level = result['level'] as String;
-                            final pin = result['pin'] as String?;
-                            final cooldownMinutes =
-                                result['cooldownMinutes'] as int?;
-
-                            // Encrypt PIN if provided
-                            String? encryptedPin;
-                            if (pin != null && pin.isNotEmpty) {
-                              final strictModeService = StrictModeService();
-                              encryptedPin =
-                                  await strictModeService.encryptPin(pin);
-                            }
-
-                            setState(() {
-                              _strictModeEnabled = level != 'NONE';
-                              _strictModeLevel = level;
-                              _strictModePin = encryptedPin;
-                              _strictModeCooldownMinutes = cooldownMinutes;
-                              _hasUnsavedChanges = true;
-                            });
-                          }
-                        } else {
-                          setState(() {
-                            _strictModeEnabled = false;
-                            _strictModeLevel = 'NONE';
-                            _strictModePin = null;
-                            _strictModeCooldownMinutes = null;
-                            _hasUnsavedChanges = true;
-                          });
-                        }
-                      },
-                      motivationalMessageController:
-                          _motivationalMessageController,
-                      notificationsEnabled: _notificationsEnabled,
-                      onNotificationsChanged: (value) {
-                        setState(() {
-                          _notificationsEnabled = value;
-                          _hasUnsavedChanges = true;
-                        });
-                      },
-                      isExpanded: _advancedOptionsExpanded,
-                      onToggleExpand: () {
-                        setState(() {
-                          _advancedOptionsExpanded = !_advancedOptionsExpanded;
-                        });
-                      },
-                    ),
-                    SizedBox(height: 10.h),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
         floatingActionButton: _isFormValid()
             ? FloatingActionButton.extended(
                 onPressed: _handleSave,
@@ -515,7 +610,7 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
                   color: theme.colorScheme.onPrimary,
                   size: 24,
                 ),
-                label: Text('Create Schedule'),
+                label: Text(_isEditing ? 'Save Changes' : 'Create Schedule'),
               )
             : null,
       ),

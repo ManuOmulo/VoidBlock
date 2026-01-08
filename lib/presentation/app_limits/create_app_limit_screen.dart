@@ -30,6 +30,7 @@ class _CreateAppLimitScreenState extends State<CreateAppLimitScreen> {
   int _hardModeDays = 0;
   int _hardModeHours = 0;
   int _hardModeMinutes = 30;
+  List<AppLimit> _existingLimits = [];
 
   @override
   void initState() {
@@ -54,6 +55,14 @@ class _CreateAppLimitScreenState extends State<CreateAppLimitScreen> {
       }
     }
     _fetchMissingIcons();
+    _loadExistingLimits();
+  }
+
+  Future<void> _loadExistingLimits() async {
+    final limits = await _appLimitService.getAllLimits();
+    if (mounted) {
+      setState(() => _existingLimits = limits);
+    }
   }
 
   Future<void> _fetchMissingIcons() async {
@@ -211,7 +220,43 @@ class _CreateAppLimitScreenState extends State<CreateAppLimitScreen> {
           MaterialPageRoute(builder: (context) => const AppSelectionScreen()),
         );
         if (result != null && result is List<String>) {
-          setState(() => _selectedPackageNames = result);
+          // Validate "One Limit Per App"
+          final conflictingApps = <String>[];
+          final validApps = <String>[];
+
+          for (var pkg in result) {
+            bool isConflict = false;
+            for (var limit in _existingLimits) {
+              // Skip current limit if we are editing it
+              if (widget.limit != null && limit.id == widget.limit!.id)
+                continue;
+
+              // Check if app is in this limit
+              if (limit.apps.any((a) => a['packageName'] == pkg)) {
+                isConflict = true;
+                break;
+              }
+            }
+            if (isConflict) {
+              conflictingApps.add(pkg);
+            } else {
+              validApps.add(pkg);
+            }
+          }
+
+          if (conflictingApps.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Skipped ${conflictingApps.length} apps that already have limits set.',
+                ),
+                backgroundColor: theme.colorScheme.error,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+
+          setState(() => _selectedPackageNames = validApps);
           _fetchMissingIcons();
         }
       },

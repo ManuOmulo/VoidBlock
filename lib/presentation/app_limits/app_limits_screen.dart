@@ -135,63 +135,131 @@ class _AppLimitsScreenState extends State<AppLimitsScreen> {
   Widget _buildLimitCard(AppLimit limit, ThemeData theme) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 2,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: () {
-          // TODO: Open limit details or edit
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          limit.name,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${limit.limitMinutes} minutes daily limit',
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 0,
+      color: theme.colorScheme.surface,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.2),
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(24),
+          onTap: () {
+            // TODO: Open limit details or edit
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer
+                            .withValues(alpha: 0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.timer_rounded,
+                        color: theme.colorScheme.primary,
+                        size: 20,
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildAppsRow(limit.apps),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  if (limit.isStrictMode)
-                    _buildStrictModeBadge(limit.strictModeLevel, theme),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.delete_outline_rounded,
-                        color: theme.colorScheme.error),
-                    onPressed: () => _confirmDelete(limit),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            limit.name,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                '${limit.limitMinutes}m limit',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              if (limit.isStrictMode) ...[
+                                SizedBox(width: 8),
+                                _buildStrictIcon(limit.strictModeLevel, theme),
+                              ]
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Action Menu
+                    Baseline(
+                      baseline: 20, // Align with text roughly
+                      baselineType: TextBaseline.alphabetic,
+                      child: PopupMenuButton<String>(
+                        icon: Icon(Icons.more_horiz_rounded,
+                            color: theme.colorScheme.onSurfaceVariant),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        onSelected: (value) {
+                          if (value == 'delete') {
+                            _confirmDelete(limit);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(
+                              children: [
+                                Icon(Icons.delete_rounded,
+                                    size: 18, color: theme.colorScheme.error),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Delete Limit',
+                                  style: TextStyle(
+                                      color: theme.colorScheme.error,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Apps Preview
+                Row(
+                  children: [
+                    Expanded(child: _buildAppsRow(limit.apps)),
+                    if (limit.isStrictMode)
+                      _buildStrictModeBadge(limit.strictModeLevel, theme),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildStrictIcon(String level, ThemeData theme) {
+    Color color = Colors.grey;
+    if (level == 'HARD') color = Colors.red;
+    if (level == 'MEDIUM') color = Colors.orange;
+    if (level == 'EASY') color = Colors.blue;
+    return Icon(Icons.lock_rounded, size: 12, color: color);
   }
 
   Widget _buildAppsRow(List<dynamic> apps) {
