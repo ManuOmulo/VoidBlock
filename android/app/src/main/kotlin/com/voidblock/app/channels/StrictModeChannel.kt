@@ -154,9 +154,9 @@ class StrictModeChannel(private val context: Context) : MethodChannel.MethodCall
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                strictModeManager.startCooldown(sessionId)
+                val started = strictModeManager.startCooldown(sessionId)
                 CoroutineScope(Dispatchers.Main).launch {
-                    result.success(true)
+                    result.success(started)
                 }
             } catch (e: Exception) {
                 CoroutineScope(Dispatchers.Main).launch {
@@ -214,9 +214,9 @@ class StrictModeChannel(private val context: Context) : MethodChannel.MethodCall
         
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                strictModeManager.startScheduleCooldown(scheduleId)
+                val started = strictModeManager.startScheduleCooldown(scheduleId)
                 CoroutineScope(Dispatchers.Main).launch {
-                    result.success(true)
+                    result.success(started)
                 }
             } catch (e: Exception) {
                 CoroutineScope(Dispatchers.Main).launch {

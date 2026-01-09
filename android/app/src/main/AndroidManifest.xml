@@ -101,6 +101,12 @@
             android:name=".receivers.BlockingSessionReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <!-- Strict Mode Cooldown Receiver -->
+        <receiver
+            android:name=".receivers.StrictModeReceiver"
+            android:enabled="true"
+            android:exported="false" />
     </application>
     <queries>
         <intent>

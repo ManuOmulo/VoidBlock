@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
 import '../../core/app_export.dart';
-import '../../services/preference_service.dart';
+
 import '../../services/analytics_service.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_icon_widget.dart';
@@ -15,14 +15,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final PreferenceService _prefService = PreferenceService();
   final AnalyticsService _analyticsService = AnalyticsService();
-
-  int _pomodoroDuration = 25;
-  int _breakDuration = 5;
-  bool _nudgesEnabled = true;
-  int _nudgeThreshold = 20;
-  List<String> _essentialApps = [];
 
   bool _isLoading = true;
 
@@ -33,20 +26,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    final pomodoro = await _prefService.getPomodoroDuration();
-    final breakDur = await _prefService.getBreakDuration();
-    final nudges = await _prefService.getNudgesEnabled();
-    final threshold = await _prefService.getNudgeThreshold();
-    final essentials = await _prefService.getEssentialApps();
-
-    setState(() {
-      _pomodoroDuration = pomodoro;
-      _breakDuration = breakDur;
-      _nudgesEnabled = nudges;
-      _nudgeThreshold = threshold;
-      _essentialApps = essentials;
-      _isLoading = false;
-    });
+    // Only functional settings verification needed here if any
+    // For now, nothing to load for the functional parts
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _exportData() async {
@@ -133,16 +119,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _pickEssentialApps() async {
-    final result = await Navigator.pushNamed(context, '/app-selection-screen');
-    if (result != null && result is List<String>) {
-      await _prefService.setEssentialApps(result);
-      setState(() {
-        _essentialApps = result;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -157,109 +133,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               padding: const EdgeInsets.symmetric(vertical: 16),
               children: [
-                _buildSectionHeader(theme, 'Focus Orchestrator'),
-                _buildSettingTile(
-                  theme,
-                  icon: 'timer',
-                  title: 'Default Focus Duration',
-                  subtitle: '$_pomodoroDuration minutes',
-                  trailing: SizedBox(
-                    width: 120,
-                    child: Slider(
-                      value: _pomodoroDuration.toDouble(),
-                      min: 5,
-                      max: 120,
-                      divisions: 23,
-                      onChanged: (val) {
-                        setState(() => _pomodoroDuration = val.toInt());
-                      },
-                      onChangeEnd: (val) =>
-                          _prefService.setPomodoroDuration(val.toInt()),
-                    ),
-                  ),
-                ),
-                _buildSettingTile(
-                  theme,
-                  icon: 'coffee',
-                  title: 'Default Break Duration',
-                  subtitle: '$_breakDuration minutes',
-                  trailing: SizedBox(
-                    width: 120,
-                    child: Slider(
-                      value: _breakDuration.toDouble(),
-                      min: 1,
-                      max: 30,
-                      divisions: 29,
-                      onChanged: (val) {
-                        setState(() => _breakDuration = val.toInt());
-                      },
-                      onChangeEnd: (val) =>
-                          _prefService.setBreakDuration(val.toInt()),
-                    ),
-                  ),
-                ),
-                const Divider(height: 32),
-                _buildSectionHeader(theme, 'App Management'),
-                _buildSettingTile(
-                  theme,
-                  icon: 'verified_user',
-                  title: 'Essential Apps',
-                  subtitle: '${_essentialApps.length} apps whitelisted',
-                  onTap: _pickEssentialApps,
-                ),
-                const Divider(height: 32),
-                _buildSectionHeader(theme, 'Proactive Alerts'),
-                SwitchListTile(
-                  secondary: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color:
-                          theme.colorScheme.primaryContainer.withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: CustomIconWidget(
-                      iconName: 'notifications_active',
-                      size: 20,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  title: Text(
-                    'Usage Nudges',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(
-                    'Get notified when you spend too much time on distracting apps',
-                    style: theme.textTheme.bodySmall,
-                  ),
-                  value: _nudgesEnabled,
-                  onChanged: (val) {
-                    setState(() => _nudgesEnabled = val);
-                    _prefService.setNudgesEnabled(val);
-                  },
-                ),
-                if (_nudgesEnabled)
-                  _buildSettingTile(
-                    theme,
-                    icon: 'hourglass_empty',
-                    title: 'Nudge Threshold',
-                    subtitle: 'Trigger after $_nudgeThreshold minutes',
-                    trailing: SizedBox(
-                      width: 120,
-                      child: Slider(
-                        value: _nudgeThreshold.toDouble(),
-                        min: 5,
-                        max: 60,
-                        divisions: 11,
-                        onChanged: (val) {
-                          setState(() => _nudgeThreshold = val.toInt());
-                        },
-                        onChangeEnd: (val) =>
-                            _prefService.setNudgeThreshold(val.toInt()),
-                      ),
-                    ),
-                  ),
-                const Divider(height: 32),
                 _buildSectionHeader(theme, 'Data & Privacy'),
                 _buildSettingTile(
                   theme,

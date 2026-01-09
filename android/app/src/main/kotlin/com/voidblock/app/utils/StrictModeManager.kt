@@ -7,7 +7,12 @@ import com.voidblock.app.data.database.entities.ScheduleEntity
 import com.voidblock.app.data.database.entities.StrictModePreferencesEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
+import com.voidblock.app.receivers.StrictModeReceiver
+import android.content.Intent
+import android.app.PendingIntent
+import android.app.AlarmManager
+import android.os.Build
+import android.util.Log
 /**
  * Manager for strict mode enforcement
  * Handles PIN validation, cooldown periods, and hard mode protection
@@ -279,11 +284,15 @@ private suspend fun ensurePreferencesExist() {
     
     /**
      * Start cooldown period for Medium mode
+     * Returns true if started, false if already in progress or session not found
      */
-    suspend fun startCooldown(sessionId: Long) {
-        withContext(Dispatchers.IO) {
+    suspend fun startCooldown(sessionId: Long): Boolean {
+        return withContext(Dispatchers.IO) {
             val session = database.blockingSessionDao().getActiveSession()
             if (session != null && session.id == sessionId) {
+                if (session.cooldownStartedAt != null) {
+                    return@withContext false
+                }
                 // Update session to start cooldown
                 val updated = session.copy(
                     cooldownStartedAt = System.currentTimeMillis(),
@@ -293,7 +302,61 @@ private suspend fun ensurePreferencesExist() {
                 
                 // Show notification
                 showCooldownNotification(session.strictModeCooldownMinutes ?: 10)
+                
+                // Schedule completion alarm
+                scheduleCooldownAlarm(
+                    session.id, 
+                    session.strictModeCooldownMinutes ?: 10, 
+                    StrictModeReceiver.ACTION_COOLDOWN_COMPLETE
+                )
+                return@withContext true
             }
+            false
+        }
+    }
+
+    /**
+     * Schedule a background alarm for cooldown completion
+     */
+    private fun scheduleCooldownAlarm(id: Long, minutes: Int, action: String) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, StrictModeReceiver::class.java).apply {
+            this.action = action
+            putExtra(StrictModeReceiver.EXTRA_ID, id)
+        }
+        
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            id.toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val triggerAtMillis = System.currentTimeMillis() + (minutes * 60 * 1000L)
+        
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerAtMillis,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setExact(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerAtMillis,
+                    pendingIntent
+                )
+            }
+            Log.d("StrictMode", "Scheduled cooldown alarm for $id in $minutes minutes")
+        } catch (e: SecurityException) {
+            // Fallback for exact alarm permission issues on Android 14+
+            alarmManager.set(
+                AlarmManager.RTC_WAKEUP,
+                triggerAtMillis,
+                pendingIntent
+            )
+            Log.e("StrictMode", "SecurityException scheduling exact alarm, using inexact fallback", e)
         }
     }
     
@@ -411,13 +474,18 @@ private suspend fun ensurePreferencesExist() {
     
     /**
      * Start cooldown period for a schedule with Medium mode
+     * Returns true if started, false if already in progress or schedule not found
      */
-    suspend fun startScheduleCooldown(scheduleId: Long) {
-        android.util.Log.d("StrictMode", "startScheduleCooldown called for scheduleId=$scheduleId")
-        withContext(Dispatchers.IO) {
+    suspend fun startScheduleCooldown(scheduleId: Long): Boolean {
+        Log.d("StrictMode", "startScheduleCooldown called for scheduleId=$scheduleId")
+        return withContext(Dispatchers.IO) {
             val schedule = database.scheduleDao().getScheduleById(scheduleId)
-            android.util.Log.d("StrictMode", "Schedule found: ${schedule != null}, isStrictMode=${schedule?.isStrictMode}, level=${schedule?.strictModeLevel}")
+            Log.d("StrictMode", "Schedule found: ${schedule != null}, isStrictMode=${schedule?.isStrictMode}, level=${schedule?.strictModeLevel}")
             if (schedule != null) {
+                if (schedule.cooldownStartedAt != null) {
+                    Log.d("StrictMode", "Cooldown already in progress for schedule $scheduleId")
+                    return@withContext false
+                }
                 // Update schedule to start cooldown
                 val updated = schedule.copy(
                     cooldownStartedAt = System.currentTimeMillis(),
@@ -427,7 +495,16 @@ private suspend fun ensurePreferencesExist() {
                 
                 // Show notification
                 showCooldownNotification(schedule.strictModeCooldownMinutes ?: 10)
+                
+                // Schedule completion alarm
+                scheduleCooldownAlarm(
+                    schedule.id, 
+                    schedule.strictModeCooldownMinutes ?: 10, 
+                    StrictModeReceiver.ACTION_SCHEDULE_COOLDOWN_COMPLETE
+                )
+                return@withContext true
             }
+            false
         }
     }
     

@@ -99,6 +99,8 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
           'startTime': s.startTime,
           'endTime': s.endTime,
           'daysOfWeek': s.daysOfWeek,
+          'cooldownStartedAt': s.cooldownStartedAt,
+          'cooldownConfirmed': s.cooldownConfirmed,
         };
       }).toList();
 
@@ -304,6 +306,25 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
   }
 
   Future<void> _deleteSchedule(int scheduleId) async {
+    final schedule =
+        _schedules.firstWhere((s) => s['id'] == scheduleId, orElse: () => {});
+    if (schedule.isEmpty) return;
+
+    final isActive = schedule['isActive'] as bool? ?? false;
+    final isRunning = schedule['isCurrentlyRunning'] as bool? ?? false;
+
+    if (isActive || isRunning) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Active or running schedules cannot be deleted.'),
+            backgroundColor: Colors.red.shade800,
+          ),
+        );
+      }
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) {
@@ -477,6 +498,28 @@ class _ScheduleManagementScreenState extends State<ScheduleManagementScreen>
   }
 
   Future<void> _bulkDelete() async {
+    final selectedSchedules = _schedules
+        .where((s) => _selectedScheduleIds.contains(s['id']))
+        .toList();
+    final activeSchedules = selectedSchedules.where((s) {
+      final isActive = s['isActive'] as bool? ?? false;
+      final isRunning = s['isCurrentlyRunning'] as bool? ?? false;
+      return isActive || isRunning;
+    }).toList();
+
+    if (activeSchedules.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                '${activeSchedules.length} active schedules cannot be deleted. Deselect them first.'),
+            backgroundColor: Colors.red.shade800,
+          ),
+        );
+      }
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) {

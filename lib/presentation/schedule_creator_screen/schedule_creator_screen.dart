@@ -41,6 +41,8 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
   String? _strictModeLevel; // NONE, EASY, MEDIUM, HARD
   String? _strictModePin; // Encrypted PIN
   int? _strictModeCooldownMinutes;
+  int? _cooldownStartedAt;
+  bool _cooldownConfirmed = false;
   bool _notificationsEnabled = true;
   String _selectedPattern = 'custom';
   bool _isEditing = false;
@@ -99,6 +101,8 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
           _strictModeLevel = schedule.strictModeLevel;
           _strictModePin = schedule.strictModePin;
           _strictModeCooldownMinutes = schedule.strictModeCooldownMinutes;
+          _cooldownStartedAt = schedule.cooldownStartedAt;
+          _cooldownConfirmed = schedule.cooldownConfirmed;
         }
         _notificationsEnabled = schedule.notificationsEnabled;
 
@@ -324,6 +328,8 @@ class _ScheduleCreatorScreenState extends State<ScheduleCreatorScreen> {
         strictModeLevel: _strictModeLevel ?? 'NONE',
         strictModePin: _strictModePin,
         strictModeCooldownMinutes: _strictModeCooldownMinutes,
+        cooldownStartedAt: _cooldownStartedAt,
+        cooldownConfirmed: _cooldownConfirmed,
         motivationalMessage: _motivationalMessageController.text.trim().isEmpty
             ? null
             : _motivationalMessageController.text.trim(),

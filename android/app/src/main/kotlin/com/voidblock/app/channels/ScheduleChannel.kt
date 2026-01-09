@@ -207,54 +207,45 @@ class ScheduleChannel(private val context: Context) : MethodChannel.MethodCallHa
                 }
                 
                 if (schedule != null) {
-                    // HARD MODE PROTECTION: Cannot delete Hard mode schedule while blocking is active
-                    if (schedule.strictModeLevel == "HARD") {
-                        // Check if this schedule is currently running a blocking session
-                        val activeSession = withContext(Dispatchers.IO) {
-                            database.blockingSessionDao().getActiveSession()
-                        }
-                        
-                        if (activeSession != null && activeSession.isActive) {
-                            // Check if the active session is from this schedule
-                            // We can check by looking at the session's start time and the schedule's time window
-                            val now = java.util.Calendar.getInstance()
-                            val currentHour = now.get(java.util.Calendar.HOUR_OF_DAY)
-                            val currentMinute = now.get(java.util.Calendar.MINUTE)
-                            val currentDayOfWeek = now.get(java.util.Calendar.DAY_OF_WEEK) - 1 // 0-6 (Sun-Sat)
-                            
-                            // Parse schedule times
-                            val startParts = schedule.startTime.split(":")
-                            val endParts = schedule.endTime.split(":")
-                            val scheduleStartHour = startParts[0].toInt()
-                            val scheduleStartMinute = startParts[1].toInt()
-                            val scheduleEndHour = endParts[0].toInt()
-                            val scheduleEndMinute = endParts[1].toInt()
-                            
-                            val currentTimeInMinutes = currentHour * 60 + currentMinute
-                            val scheduleStartInMinutes = scheduleStartHour * 60 + scheduleStartMinute
-                            val scheduleEndInMinutes = scheduleEndHour * 60 + scheduleEndMinute
-                            
-                            // Check if current time is within schedule window and day matches
-                            val isInTimeWindow = if (scheduleEndInMinutes < scheduleStartInMinutes) {
-                                // Schedule spans midnight
-                                currentTimeInMinutes >= scheduleStartInMinutes || currentTimeInMinutes <= scheduleEndInMinutes
-                            } else {
-                                currentTimeInMinutes >= scheduleStartInMinutes && currentTimeInMinutes <= scheduleEndInMinutes
-                            }
-                            
-                            val isDayMatch = schedule.daysOfWeek.split(",")
-                                .mapNotNull { it.toIntOrNull() }
-                                .contains(currentDayOfWeek)
-                            
-                            if (isInTimeWindow && isDayMatch && schedule.isActive) {
-                                result.error(
-                                    "HARD_MODE_ACTIVE",
-                                    "Cannot delete Hard mode schedule while blocking is active. Wait for the session to end or change to a different strict mode level.",
-                                    null
-                                )
-                                return@launch
-                            }
-                        }
+                    // GENERAL PROTECTION: Cannot delete an active or currently running schedule
+                    val now = java.util.Calendar.getInstance()
+                    val currentHour = now.get(java.util.Calendar.HOUR_OF_DAY)
+                    val currentMinute = now.get(java.util.Calendar.MINUTE)
+                    val currentDayOfWeek = (now.get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7 // Convert to 0-6 (Mon=0, Sun=6 is WRONG, wait)
+                    // Let's use the same logic as before: currentDayOfWeek = now.get(Calendar.DAY_OF_WEEK) - 1 where 0=Sun, 6=Sat
+                    val dayOfWeek = now.get(java.util.Calendar.DAY_OF_WEEK) - 1
+
+                    // Parse schedule times
+                    val startParts = schedule.startTime.split(":")
+                    val endParts = schedule.endTime.split(":")
+                    val scheduleStartHour = startParts[0].toInt()
+                    val scheduleStartMinute = startParts[1].toInt()
+                    val scheduleEndHour = endParts[0].toInt()
+                    val scheduleEndMinute = endParts[1].toInt()
+                    
+                    val currentTimeInMinutes = currentHour * 60 + currentMinute
+                    val scheduleStartInMinutes = scheduleStartHour * 60 + scheduleStartMinute
+                    val scheduleEndInMinutes = scheduleEndHour * 60 + scheduleEndMinute
+                    
+                    val isInTimeWindow = if (scheduleEndInMinutes < scheduleStartInMinutes) {
+                        currentTimeInMinutes >= scheduleStartInMinutes || currentTimeInMinutes <= scheduleEndInMinutes
+                    } else {
+                        currentTimeInMinutes >= scheduleStartInMinutes && currentTimeInMinutes <= scheduleEndInMinutes
+                    }
+                    
+                    val isDayMatch = schedule.daysOfWeek.split(",")
+                        .mapNotNull { it.trim().removeSurrounding("[", "]").toIntOrNull() }
+                        .contains(dayOfWeek)
+
+                    val isRunning = isInTimeWindow && isDayMatch && schedule.isActive
+
+                    if (schedule.isActive || isRunning) {
+                        result.error(
+                            "SCHEDULE_ACTIVE",
+                            "Cannot delete a schedule that is active or currently running. Please deactivate it first.",
+                            null
+                        )
+                        return@launch
                     }
                     
                     // Cancel alarms
@@ -425,7 +416,9 @@ class ScheduleChannel(private val context: Context) : MethodChannel.MethodCallHa
             strictModeCooldownMinutes = data["strictModeCooldownMinutes"] as? Int,
             motivationalMessage = data["motivationalMessage"] as? String,
             notificationsEnabled = data["notificationsEnabled"] as? Boolean ?: true,
-            createdAt = (data["createdAt"] as? Long) ?: System.currentTimeMillis()
+            createdAt = (data["createdAt"] as? Long) ?: System.currentTimeMillis(),
+            cooldownStartedAt = (data["cooldownStartedAt"] as? Number)?.toLong(),
+            cooldownConfirmed = data["cooldownConfirmed"] as? Boolean ?: false
         )
     }
     
@@ -449,6 +442,8 @@ class ScheduleChannel(private val context: Context) : MethodChannel.MethodCallHa
             "strictModeLevel" to schedule.strictModeLevel,
             "strictModePin" to schedule.strictModePin,
             "strictModeCooldownMinutes" to schedule.strictModeCooldownMinutes,
+            "cooldownStartedAt" to schedule.cooldownStartedAt,
+            "cooldownConfirmed" to schedule.cooldownConfirmed,
             "motivationalMessage" to schedule.motivationalMessage,
             "notificationsEnabled" to schedule.notificationsEnabled,
             "blockedApps" to blockedApps

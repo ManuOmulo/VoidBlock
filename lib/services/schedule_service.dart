@@ -15,6 +15,8 @@ class Schedule {
   final String? strictModeLevel; // NONE, EASY, MEDIUM, HARD
   final String? strictModePin; // Encrypted PIN
   final int? strictModeCooldownMinutes;
+  final int? cooldownStartedAt;
+  final bool cooldownConfirmed;
   final String? motivationalMessage;
   final bool notificationsEnabled;
   final List<String> blockedApps;
@@ -31,6 +33,8 @@ class Schedule {
     this.strictModeLevel,
     this.strictModePin,
     this.strictModeCooldownMinutes,
+    this.cooldownStartedAt,
+    this.cooldownConfirmed = false,
     this.motivationalMessage,
     this.notificationsEnabled = true,
     this.blockedApps = const [],
@@ -48,6 +52,8 @@ class Schedule {
         'strictModeLevel': strictModeLevel,
         'strictModePin': strictModePin,
         'strictModeCooldownMinutes': strictModeCooldownMinutes,
+        'cooldownStartedAt': cooldownStartedAt,
+        'cooldownConfirmed': cooldownConfirmed,
         'motivationalMessage': motivationalMessage,
         'notificationsEnabled': notificationsEnabled,
         'blockedApps': blockedApps,
@@ -65,6 +71,8 @@ class Schedule {
         strictModeLevel: json['strictModeLevel'],
         strictModePin: json['strictModePin'],
         strictModeCooldownMinutes: json['strictModeCooldownMinutes'],
+        cooldownStartedAt: json['cooldownStartedAt'],
+        cooldownConfirmed: json['cooldownConfirmed'] ?? false,
         motivationalMessage: json['motivationalMessage'],
         notificationsEnabled: json['notificationsEnabled'] ?? true,
         blockedApps: List<String>.from(json['blockedApps'] ?? []),
