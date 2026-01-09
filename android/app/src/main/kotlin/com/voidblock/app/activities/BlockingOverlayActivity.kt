@@ -100,7 +100,7 @@ class BlockingOverlayActivity : AppCompatActivity() {
         val quote = intent.getStringExtra("quote") ?: "Stay focused on your goals!"
         
         // Update UI elements
-        findViewById<android.widget.TextView>(R.id.app_name_text).text = "$blockedAppName is blocked"
+        findViewById<android.widget.TextView>(R.id.app_name_text).text = "$blockedAppName is restricted"
         findViewById<android.widget.TextView>(R.id.message_text).text = quote
         
         // Set up close button

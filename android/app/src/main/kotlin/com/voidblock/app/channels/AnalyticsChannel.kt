@@ -464,36 +464,85 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
     private fun exportUsageData(startTime: Long, endTime: Long, result: MethodChannel.Result) {
         scope.launch {
             try {
-                val data = withContext(Dispatchers.IO) {
+                val csvData = withContext(Dispatchers.IO) {
                     val logs = database.usageLogDao().getLogsForPeriod(startTime, endTime)
+                    val focusSessions = database.focusSessionDao().getOverlappingSessions(startTime, endTime)
                     
-                    // Convert to CSV format
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                    val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.US)
+                    
                     val csv = StringBuilder()
-                    csv.append("Date,Time,App Name,Package Name,Duration (min),Was Blocked,Schedule\n")
+                    csv.append("Date,Time,Type,Subject,Category,Duration/Target (min),Status,Related Session\n")
                     
-                    logs.forEach { log ->
-                        val date = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                            .format(java.util.Date(log.startTime))
-                        val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
-                            .format(java.util.Date(log.startTime))
-                        val duration = log.durationMillis / (1000 * 60)
+                    // Group data by day for summaries
+                    val allDays = mutableSetOf<String>()
+                    logs.forEach { allDays.add(dateFormat.format(Date(it.startTime))) }
+                    focusSessions.forEach { allDays.add(dateFormat.format(Date(it.startTime))) }
+                    
+                    val sortedDays = allDays.sortedDescending()
+                    
+                    sortedDays.forEach { dayStr ->
+                        val dayStartCal = Calendar.getInstance()
+                        dayStartCal.time = dateFormat.parse(dayStr) ?: Date()
+                        val dayStart = dayStartCal.timeInMillis
+                        val dayEnd = dayStart + 86400000L
                         
-                        csv.append("$date,$time,\"${log.appName}\",${log.packageName},$duration,${log.wasBlocked},${log.scheduleName ?: ""}\n")
+                        // 1. Daily Summary Row
+                        val dayLogs = logs.filter { dateFormat.format(Date(it.startTime)) == dayStr }
+                        val dayFocus = focusSessions.filter { dateFormat.format(Date(it.startTime)) == dayStr }
+                        
+                        val totalFocusTimeMs = dayFocus.sumOf { (it.endTime ?: System.currentTimeMillis()) - it.startTime }
+                        val blockedCount = dayLogs.filter { it.wasBlocked }.size
+                        val totalBlockedTimeMs = dayLogs.filter { it.wasBlocked }.sumOf { it.durationMillis }
+                        
+                        // Estimate total usage for productivity score (or use a placeholder if not available for export window)
+                        // For the summary row in CSV, let's keep it simple or fetch stats
+                        val stats = usageStatsManager.queryAndAggregateUsageStats(dayStart, dayEnd)
+                        val totalUsageTimeMs = stats.values.sumOf { it.totalTimeInForeground }
+                        
+                        val score = productivityCalculator.calculateProductivityScore(
+                            blockedCount, totalBlockedTimeMs, totalUsageTimeMs, 1
+                        )
+                        
+                        csv.append("$dayStr,00:00:00,SUMMARY,Daily Productivity Summary,N/A,${totalFocusTimeMs / 60000},Score: ${String.format(Locale.US, "%.1f", score)},Focus: ${totalFocusTimeMs / 60000}m Blocks: $blockedCount\n")
+                        
+                        // 2. Interleave Sessions and Logs for that day, sorted by time
+                        val dayItems = mutableListOf<Pair<Long, String>>()
+                        
+                        dayFocus.forEach { session ->
+                            val startTimeStr = timeFormat.format(Date(session.startTime))
+                            val duration = if (session.endTime != null) (session.endTime - session.startTime) / 60000 else 0
+                            val status = if (session.endTime != null) "Completed" else "Active/Dangling"
+                            val row = "$dayStr,$startTimeStr,FOCUS_SESSION,${session.type},N/A,${session.durationMinutes}, $status,${session.relatedId ?: "N/A"}\n"
+                            dayItems.add(session.startTime to row)
+                        }
+                        
+                        dayLogs.forEach { log ->
+                            val startTimeStr = timeFormat.format(Date(log.startTime))
+                            val category = appsManager.getCategoryForApp(log.packageName)
+                            val duration = log.durationMillis / 60000
+                            val status = if (log.wasBlocked) "Blocked" else "Allowed"
+                            val row = "$dayStr,$startTimeStr,APP_USAGE,\"${log.appName}\",$category,$duration,$status,${log.scheduleName ?: "N/A"}\n"
+                            dayItems.add(log.startTime to row)
+                        }
+                        
+                        dayItems.sortByDescending { it.first }
+                        dayItems.forEach { csv.append(it.second) }
                     }
                     
                     csv.toString()
                 }
                 
                 // Save to file
-                val filename = "voidblock_export_${System.currentTimeMillis()}.csv"
+                val filename = "voidblock_productivity_report_${System.currentTimeMillis()}.csv"
                 val file = File(context.getExternalFilesDir(null), filename)
-                file.writeText(data)
+                file.writeText(csvData)
                 
                 result.success(mapOf(
                     "success" to true,
                     "path" to file.absolutePath,
                     "filename" to filename,
-                    "recordCount" to data.lines().size - 1
+                    "recordCount" to csvData.lines().size - 1
                 ))
             } catch (e: Exception) {
                 e.printStackTrace()

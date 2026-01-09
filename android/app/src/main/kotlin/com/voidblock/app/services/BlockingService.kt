@@ -729,13 +729,23 @@ class BlockingService : Service() {
 
                 // Set app info
                 val appName = getAppName(packageName)
-                overlayView.findViewById<TextView>(R.id.app_name_text).text = "$appName is blocked"
+                overlayView.findViewById<TextView>(R.id.app_name_text).text = "$appName is restricted"
                 overlayView.findViewById<TextView>(R.id.message_text).text = MotivationalQuotes.getRandomQuote()
 
                 // Set up button
                 overlayView.findViewById<Button>(R.id.close_button).setOnClickListener {
                     navigateToHomeInternal()
                     removeOverlay()
+                }
+
+                // Setup safe fade-in animation for the central content
+                val cardRoot = overlayView.findViewById<View>(R.id.main_card_root)
+                if (cardRoot != null) {
+                    cardRoot.alpha = 0f
+                    cardRoot.animate()
+                        .alpha(1f)
+                        .setDuration(400)
+                        .start()
                 }
 
                 val params = WindowManager.LayoutParams(

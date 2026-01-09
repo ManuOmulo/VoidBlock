@@ -1,65 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/overlay_background"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="32dp">
+    android:background="#FFFFFF">
 
-    <ImageView
-        android:id="@+id/icon_view"
-        android:layout_width="96dp"
-        android:layout_height="96dp"
-        android:layout_marginBottom="32dp"
-        android:src="@mipmap/ic_launcher"
-        android:contentDescription="App Icon" />
-
-    <TextView
-        android:id="@+id/title_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="Focus Mode Active"
-        android:textColor="@color/overlay_text_primary"
-        android:textSize="28sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/app_name_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
-        android:text="App is blocked"
-        android:textColor="@color/overlay_text_secondary"
-        android:textSize="18sp" />
-
-    <FrameLayout
+    <!-- Centered Content Group -->
+    <LinearLayout
+        android:id="@+id/main_card_root"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="48dp"
-        android:background="@drawable/card_background"
-        android:padding="24dp">
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="32dp"
+        app:layout_constraintBottom_toTopOf="@+id/close_button"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed">
+
+        <ImageView
+            android:id="@+id/icon_view"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_marginBottom="32dp"
+            android:contentDescription="VoidBlock Logo"
+            android:src="@mipmap/ic_launcher" />
+
+        <TextView
+            android:id="@+id/title_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Blocked by VoidBlock"
+            android:textColor="#0F172A"
+            android:textSize="32sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/app_name_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="40dp"
+            android:text="App is restricted"
+            android:textColor="#475569"
+            android:textSize="18sp" />
+
+        <!-- Quote Divider -->
+        <View
+            android:layout_width="120dp"
+            android:layout_height="1dp"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/overlay_quote_divider" />
 
         <TextView
             android:id="@+id/message_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:alpha="0.7"
             android:gravity="center"
+            android:paddingHorizontal="16dp"
             android:text="Stay focused on your goals!"
-            android:textColor="@color/overlay_text_primary"
+            android:textColor="#0F172A"
             android:textSize="16sp"
             android:textStyle="italic" />
-    </FrameLayout>
+    </LinearLayout>
 
+    <!-- Branded Pill Button at the Bottom -->
     <Button
         android:id="@+id/close_button"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:background="@drawable/button_background"
-        android:text="Go Back"
-        android:textColor="@color/overlay_on_primary"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        android:layout_marginHorizontal="64dp"
+        android:layout_marginBottom="64dp"
+        android:background="@drawable/overlay_button_bg"
+        android:text="Close"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

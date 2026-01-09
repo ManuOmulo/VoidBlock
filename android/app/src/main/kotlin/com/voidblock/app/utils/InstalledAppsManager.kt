@@ -172,7 +172,7 @@ class InstalledAppsManager(private val context: Context) {
     /**
      * Get category for app (basic heuristic)
      */
-    private fun getCategoryForApp(packageName: String): String {
+    fun getCategoryForApp(packageName: String): String {
         return when {
             packageName.contains("social", ignoreCase = true) -> "Social"
             packageName.contains("game", ignoreCase = true) -> "Games"
