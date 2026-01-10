@@ -20,6 +20,10 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Button
 import com.voidblock.app.R
+import android.graphics.LinearGradient
+import android.graphics.Shader
+import android.graphics.Color
+import android.graphics.Typeface
 
 /**
  * Foreground service that monitors app usage and blocks access to specified apps
@@ -727,22 +731,51 @@ class BlockingService : Service() {
                 val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
                 val overlayView = inflater.inflate(R.layout.activity_blocking_overlay, null)
 
-                // Set app info
+                // Set up fonts and text
                 val appName = getAppName(packageName)
-                overlayView.findViewById<TextView>(R.id.app_name_text).text = "$appName is restricted"
-                overlayView.findViewById<TextView>(R.id.message_text).text = MotivationalQuotes.getRandomQuote()
+                val restrictedText = overlayView.findViewById<TextView>(R.id.app_name_text)
+                val titleText = overlayView.findViewById<TextView>(R.id.title_text)
+                val messageText = overlayView.findViewById<TextView>(R.id.message_text)
+                val closeButton = overlayView.findViewById<Button>(R.id.close_button)
+
+                // Force Roboto to bypass system fonts
+                val robotoBold = Typeface.create("sans-serif", Typeface.BOLD)
+                val robotoBlack = Typeface.create("sans-serif-black", Typeface.NORMAL)
+                val robotoNormal = Typeface.create("sans-serif", Typeface.NORMAL)
+
+                restrictedText.typeface = robotoNormal
+                restrictedText.text = "VoidBlock restricted $appName"
+
+                titleText.typeface = robotoBlack // Making it "thicker" as requested
+                
+                messageText.typeface = robotoNormal
+                messageText.text = MotivationalQuotes.getRandomQuote()
+
+                closeButton.typeface = robotoBold
+
+                // Apply VERTICAL LinearGradient Shader to the title text
+                titleText.post {
+                    val paint = titleText.paint
+                    val height = titleText.height.toFloat()
+                    // Top to bottom gradient for a more "solid" premium look
+                    val textShader = LinearGradient(0f, 0f, 0f, height,
+                        intArrayOf(Color.parseColor("#4FACFE"), Color.parseColor("#8E2DE2")),
+                        null, Shader.TileMode.CLAMP)
+                    paint.shader = textShader
+                    titleText.invalidate()
+                }
 
                 // Set up button
-                overlayView.findViewById<Button>(R.id.close_button).setOnClickListener {
+                closeButton.setOnClickListener {
                     navigateToHomeInternal()
                     removeOverlay()
                 }
 
                 // Setup safe fade-in animation for the central content
-                val cardRoot = overlayView.findViewById<View>(R.id.main_card_root)
-                if (cardRoot != null) {
-                    cardRoot.alpha = 0f
-                    cardRoot.animate()
+                val contentRoot = overlayView.findViewById<View>(R.id.main_content_root)
+                if (contentRoot != null) {
+                    contentRoot.alpha = 0f
+                    contentRoot.animate()
                         .alpha(1f)
                         .setDuration(400)
                         .start()

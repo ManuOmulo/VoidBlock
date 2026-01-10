@@ -10,6 +10,9 @@ import android.widget.TextView
 import android.widget.Button
 import android.view.View
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Shader
+import android.graphics.Typeface
 import com.voidblock.app.R
 
 /**
@@ -99,9 +102,38 @@ class BlockingOverlayActivity : AppCompatActivity() {
         val blockedAppName = intent.getStringExtra("blocked_app_name") ?: "App"
         val quote = intent.getStringExtra("quote") ?: "Stay focused on your goals!"
         
-        // Update UI elements
-        findViewById<android.widget.TextView>(R.id.app_name_text).text = "$blockedAppName is restricted"
-        findViewById<android.widget.TextView>(R.id.message_text).text = quote
+        // Set up fonts and text
+        val appNameText = findViewById<TextView>(R.id.app_name_text)
+        val titleText = findViewById<TextView>(R.id.title_text)
+        val messageText = findViewById<TextView>(R.id.message_text)
+        val closeButton = findViewById<Button>(R.id.close_button)
+
+        // Force Roboto to bypass system fonts
+        val robotoBold = Typeface.create("sans-serif", Typeface.BOLD)
+        val robotoBlack = Typeface.create("sans-serif-black", Typeface.NORMAL)
+        val robotoNormal = Typeface.create("sans-serif", Typeface.NORMAL)
+
+        appNameText.typeface = robotoNormal
+        appNameText.text = "VoidBlock restricted $blockedAppName"
+
+        titleText.typeface = robotoBlack // Making it "thicker" as requested
+        
+        messageText.typeface = robotoNormal
+        messageText.text = quote
+
+        closeButton.typeface = robotoBold
+
+        // Apply VERTICAL LinearGradient Shader to the title text
+        titleText.post {
+            val paint = titleText.paint
+            val height = titleText.height.toFloat()
+            // Top to bottom gradient for a more "solid" premium look
+            val textShader = LinearGradient(0f, 0f, 0f, height,
+                intArrayOf(Color.parseColor("#4FACFE"), Color.parseColor("#8E2DE2")),
+                null, Shader.TileMode.CLAMP)
+            paint.shader = textShader
+            titleText.invalidate()
+        }
         
         // Set up close button
         findViewById<android.widget.Button>(R.id.close_button).setOnClickListener {

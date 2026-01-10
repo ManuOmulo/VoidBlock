@@ -6,77 +6,86 @@
     android:layout_height="match_parent"
     android:background="#FFFFFF">
 
-    <!-- Centered Content Group -->
+    <!-- Background Corner Orbs -->
+    <View
+        android:layout_width="450dp"
+        android:layout_height="450dp"
+        android:background="@drawable/overlay_gradient_corner_top"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:layout_width="450dp"
+        android:layout_height="450dp"
+        android:background="@drawable/overlay_gradient_corner_bottom"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Restricted App Status (Top-Centered) -->
+    <TextView
+        android:id="@+id/app_name_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="64dp"
+        android:text="VoidBlock restricted Instagram"
+        android:textColor="#64748B"
+        android:textSize="14sp"
+        android:textAllCaps="true"
+        android:letterSpacing="0.1"
+        android:textStyle="normal"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <!-- Typography Focused Content (Centered) -->
     <LinearLayout
-        android:id="@+id/main_card_root"
+        android:id="@+id/main_content_root"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:orientation="vertical"
         android:padding="32dp"
         app:layout_constraintBottom_toTopOf="@+id/close_button"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed">
-
-        <ImageView
-            android:id="@+id/icon_view"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            android:layout_marginBottom="32dp"
-            android:contentDescription="VoidBlock Logo"
-            android:src="@mipmap/ic_launcher" />
+        app:layout_constraintTop_toBottomOf="@+id/app_name_text">
 
         <TextView
             android:id="@+id/title_text"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Blocked by VoidBlock"
+            android:layout_marginBottom="32dp"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp"
+            android:text="Break the Scroll.\nReclaim Your Focus."
             android:textColor="#0F172A"
-            android:textSize="32sp"
+            android:textSize="48sp"
             android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/app_name_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="40dp"
-            android:text="App is restricted"
-            android:textColor="#475569"
-            android:textSize="18sp" />
-
-        <!-- Quote Divider -->
-        <View
-            android:layout_width="120dp"
-            android:layout_height="1dp"
-            android:layout_marginBottom="24dp"
-            android:background="@drawable/overlay_quote_divider" />
 
         <TextView
             android:id="@+id/message_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:alpha="0.7"
             android:gravity="center"
+            android:lineHeight="28sp"
             android:paddingHorizontal="16dp"
             android:text="Stay focused on your goals!"
-            android:textColor="#0F172A"
-            android:textSize="16sp"
-            android:textStyle="italic" />
+            android:textColor="#334155"
+            android:textSize="18sp"
+            android:textStyle="normal" />
     </LinearLayout>
 
     <!-- Branded Pill Button at the Bottom -->
     <Button
         android:id="@+id/close_button"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="60dp"
         android:layout_marginHorizontal="64dp"
-        android:layout_marginBottom="64dp"
+        android:layout_marginBottom="56dp"
         android:background="@drawable/overlay_button_bg"
+        android:elevation="0dp"
         android:text="Close"
         android:textAllCaps="false"
         android:textColor="#FFFFFF"
-        android:textSize="18sp"
+        android:textSize="16sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
