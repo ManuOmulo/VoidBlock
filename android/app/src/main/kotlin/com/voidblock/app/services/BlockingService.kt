@@ -846,13 +846,18 @@ class BlockingService : Service() {
      * End a focus session in the database
      */
     private fun endFocusSession(type: String, relatedId: Long?) {
+        val now = System.currentTimeMillis()
+        
+        // 1. Safety fallback: End ALL active sessions of this type in DB
+        // This handles cases where the service was restarted and the map is empty
+        scope.launch(Dispatchers.IO) {
+            focusSessionDao.endSessionsByType(type, now)
+        }
+
         if (relatedId == null) {
-            // End ALL sessions of this type
+            // End ALL sessions of this type in the in-memory map
             val keysToEnd = activeFocusSessionIds.keys.filter { it.startsWith("${type}") }
             if (keysToEnd.isEmpty()) {
-                // Last ditch effort: if map is empty but we want to end,
-                // we might need to check DB, but let's trust the map for now
-                // unless we find it's consistently out of sync.
                 android.util.Log.w("BlockingService", "No active focus sessions found in map for type: $type")
             }
 
@@ -860,7 +865,7 @@ class BlockingService : Service() {
                 val id = activeFocusSessionIds.remove(k)
                 if (id != null) {
                     scope.launch(Dispatchers.IO) {
-                        focusSessionDao.endSession(id, System.currentTimeMillis())
+                        focusSessionDao.endSession(id, now)
                         android.util.Log.d("BlockingService", "Ended Focus Session: $k, ID: $id")
                     }
                 }
@@ -872,7 +877,7 @@ class BlockingService : Service() {
         val id = activeFocusSessionIds.remove(key)
         if (id != null) {
             scope.launch(Dispatchers.IO) {
-                focusSessionDao.endSession(id, System.currentTimeMillis())
+                focusSessionDao.endSession(id, now)
                 android.util.Log.d("BlockingService", "Ended Focus Session: $key, ID: $id")
             }
         } else {
@@ -880,7 +885,7 @@ class BlockingService : Service() {
             val fallbackId = activeFocusSessionIds.remove(type)
             if (fallbackId != null) {
                 scope.launch(Dispatchers.IO) {
-                    focusSessionDao.endSession(fallbackId, System.currentTimeMillis())
+                    focusSessionDao.endSession(fallbackId, now)
                     android.util.Log.d("BlockingService", "Ended Focus Session (Fallback): $type, ID: $fallbackId")
                 }
             }

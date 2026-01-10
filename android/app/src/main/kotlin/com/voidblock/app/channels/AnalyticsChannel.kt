@@ -169,8 +169,8 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     
                     val currentTime = System.currentTimeMillis()
                     
-                    // NEW: Calculate Total Focus Time by merging overlapping intervals
-                    val rawSessions = database.focusSessionDao().getOverlappingSessions(startTime, currentTime)
+                    // NEW: Calculate Total Focus Time by merging overlapping intervals (Excluding LIMIT type)
+                    val rawSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(startTime, currentTime)
                     val intervals = rawSessions.map { 
                         // Clip intervals to the requested period [startTime, currentTime]
                         maxOf(startTime, it.startTime) to minOf(currentTime, it.endTime ?: currentTime)
@@ -339,7 +339,7 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
                     val totalUsageTime = systemStats.values.sumOf { it.totalTimeInForeground }
                     
-                    val focusSessions = database.focusSessionDao().getOverlappingSessions(startTime, System.currentTimeMillis())
+                    val focusSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(startTime, System.currentTimeMillis())
                     
                     val score = productivityCalculator.calculateProductivityScore(blockedCount, totalBlockedTime, totalUsageTime, days)
                     
@@ -374,7 +374,7 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 val globalStartTime = currentTime - (days * 24 * 60 * 60 * 1000L)
                 
                 val dailyFocusStats: List<DailyFocusSummary> = withContext(Dispatchers.IO) {
-                    val rawSessions = database.focusSessionDao().getOverlappingSessions(globalStartTime, currentTime)
+                    val rawSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(globalStartTime, currentTime)
                     
                     // 1. Merge overlapping intervals globally first
                     val globalIntervals = rawSessions.map { 
@@ -466,7 +466,7 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
             try {
                 val csvData = withContext(Dispatchers.IO) {
                     val logs = database.usageLogDao().getLogsForPeriod(startTime, endTime)
-                    val focusSessions = database.focusSessionDao().getOverlappingSessions(startTime, endTime)
+                    val focusSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(startTime, endTime)
                     
                     val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
                     val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.US)
