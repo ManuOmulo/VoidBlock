@@ -5,6 +5,8 @@ import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.TextView
 import android.widget.Button
@@ -87,8 +89,23 @@ class BlockingOverlayActivity : AppCompatActivity() {
             )
         }
         
-        // Show over other apps (removed FLAG_NOT_TOUCHABLE to allow button clicks)
+        // Show over other apps
         window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN)
+        
+        // --- TRUE EDGE-TO-EDGE IMPLEMENTATION ---
+        
+        // 1. Tell Android not to fit system windows (draw background behind bars)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        
+        // 2. Disable navigation bar contrast (scrim) for pure white look on API 29+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+        
+        // 3. Ensure status and navigation bar icons are dark (light theme)
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        controller.isAppearanceLightStatusBars = true
+        controller.isAppearanceLightNavigationBars = true
     }
     
     /**

@@ -75,9 +75,11 @@ class BlockingService : Service() {
         const val ACTION_START_SCHEDULE = "com.voidblock.app.service.START_SCHEDULE"
         const val ACTION_STOP_SCHEDULE = "com.voidblock.app.service.STOP_SCHEDULE"
         const val ACTION_UPDATE_BLOCKED_APPS = "com.voidblock.app.service.UPDATE_BLOCKED_APPS"
+        const val ACTION_ACCESSIBILITY_EVENT = "com.voidblock.app.service.ACCESSIBILITY_EVENT"
         
         const val EXTRA_APP_PACKAGES = "app_packages"
         const val EXTRA_SCHEDULE_ID = "schedule_id"
+        const val EXTRA_PACKAGE_NAME = "package_name"
         
         const val CHECK_INTERVAL_MS = 500L
         const val LIMIT_CHECK_INTERVAL_MS = 60000L
@@ -129,6 +131,24 @@ class BlockingService : Service() {
             }
             ACTION_UPDATE_BLOCKED_APPS -> {
                 updateBlockedApps()
+            }
+            ACTION_ACCESSIBILITY_EVENT -> {
+                val pkgName = intent.getStringExtra(EXTRA_PACKAGE_NAME)
+                if (pkgName != null) {
+                    scope.launch {
+                        // Immediately check the app notified by accessibility service
+                        if (blockedPackages.contains(pkgName)) {
+                            if (pkgName != packageName && !pkgName.contains("com.voidblock.app")) {
+                                android.util.Log.d("BlockingService", "ACCESSIBILITY TRIGGER: $pkgName is blocked!")
+                                lastOverlayPackage = pkgName // Force update
+                                showBlockingOverlay(pkgName)
+                            }
+                        } else {
+                            // If it's not a blocked app, check if we should remove overlay
+                            checkForegroundApp()
+                        }
+                    }
+                }
             }
         }
 
@@ -790,9 +810,26 @@ class BlockingService : Service() {
                         @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE,
                     WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS,
                     android.graphics.PixelFormat.TRANSLUCENT
                 )
+
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+
+                // Force system UI visibility for transparent bars and dark icons
+                @Suppress("DEPRECATION")
+                overlayView.systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR)
+                
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    @Suppress("DEPRECATION")
+                    overlayView.systemUiVisibility = overlayView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                }
 
                 windowManager.addView(overlayView, params)
                 currentOverlayView = overlayView

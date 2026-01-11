@@ -50,6 +50,30 @@ class PermissionService {
     }
   }
 
+  /// Check if accessibility permission is granted
+  Future<bool> checkAccessibilityPermission() async {
+    try {
+      final result =
+          await platform.invokeMethod('checkAccessibilityPermission');
+      return result as bool;
+    } on PlatformException catch (e) {
+      print('Error checking accessibility permission: ${e.message}');
+      return false;
+    }
+  }
+
+  /// Request accessibility permission
+  Future<bool> requestAccessibilityPermission() async {
+    try {
+      final result =
+          await platform.invokeMethod('requestAccessibilityPermission');
+      return result as bool;
+    } on PlatformException catch (e) {
+      print('Error requesting accessibility permission: ${e.message}');
+      return false;
+    }
+  }
+
   /// Check if notification permission is granted
   Future<bool> checkNotificationPermission() async {
     try {
@@ -128,6 +152,7 @@ class PermissionService {
       return {
         'usageStats': false,
         'overlay': false,
+        'accessibility': false,
         'notification': false,
         'batteryOptimization': false,
         'exactAlarms': false,

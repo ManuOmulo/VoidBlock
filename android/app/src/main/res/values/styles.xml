@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
     <style name="LaunchTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <!-- Show a splash screen on the activity. Automatically removed when
@@ -15,12 +15,18 @@
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
     
-    <!-- Theme for BlockingOverlayActivity - AppCompat fullscreen -->
+    <!-- Theme for BlockingOverlayActivity - Fullscreen with transparent system bars -->
     <style name="BlockingOverlayTheme" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowFullscreen">false</item>
         <item name="android:windowIsTranslucent">false</item>
-        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
     </style>
 
     <!-- Post Android 12 Splash Screen Theme -->

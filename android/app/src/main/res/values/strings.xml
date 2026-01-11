@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VoidBlock</string>
+    <string name="accessibility_service_description">Used to detect app switches in real-time to enforce focus sessions and prevent bypasses via gesture navigation.</string>
 
 </resources>

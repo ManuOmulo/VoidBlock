@@ -20,6 +20,7 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
   Map<String, bool> _permissions = {
     'usageStats': false,
     'overlay': false,
+    'accessibility': false,
     'notification': false,
     'batteryOptimization': false,
     'exactAlarms': false,
@@ -67,6 +68,9 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
       case 'overlay':
         await _permissionService.requestOverlayPermission();
         break;
+      case 'accessibility':
+        await _permissionService.requestAccessibilityPermission();
+        break;
       case 'notification':
         await _permissionService.requestNotificationPermission();
         break;
@@ -85,7 +89,8 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
 
   bool get _allCriticalPermissionsGranted {
     return _permissions['usageStats'] == true &&
-        _permissions['overlay'] == true;
+        _permissions['overlay'] == true &&
+        _permissions['accessibility'] == true;
   }
 
   @override
@@ -133,6 +138,13 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                         Icons.layers_outlined,
                         true,
                       ),
+                      _buildPermissionCard(
+                        'Accessibility Service',
+                        'Critical for detecting app switches instantly and preventing bypasses',
+                        'accessibility',
+                        Icons.accessibility_new_outlined,
+                        true,
+                      ),
                       SizedBox(height: 16),
                       Text(
                         'Optional Permissions',
@@ -162,6 +174,8 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                         Icons.alarm_outlined,
                         false,
                       ),
+                      SizedBox(height: 24),
+                      _buildPrivacyGuarantee(theme),
                       SizedBox(height: 80),
                     ],
                   ),
@@ -169,6 +183,48 @@ class _PermissionOnboardingScreenState extends State<PermissionOnboardingScreen>
                 _buildBottomBar(theme),
               ],
             ),
+    );
+  }
+
+  Widget _buildPrivacyGuarantee(ThemeData theme) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: theme.colorScheme.primary.withOpacity(0.1),
+        ),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.security_outlined,
+                color: theme.colorScheme.primary,
+                size: 20,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Privacy Guarantee',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Your privacy is our priority. VoidBlock does not collect, store, or share any of your personal data. These permissions are used locally on your device solely to enforce your focus sessions.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

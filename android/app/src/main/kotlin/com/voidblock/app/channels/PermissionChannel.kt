@@ -36,6 +36,15 @@ class PermissionChannel(private val context: Context) : MethodChannel.MethodCall
                 result.success(true)
             }
             
+            "checkAccessibilityPermission" -> {
+                result.success(permissionManager.hasAccessibilityPermission())
+            }
+            
+            "requestAccessibilityPermission" -> {
+                permissionManager.requestAccessibilityPermission()
+                result.success(true)
+            }
+            
             "checkNotificationPermission" -> {
                 result.success(permissionManager.hasNotificationPermission())
             }

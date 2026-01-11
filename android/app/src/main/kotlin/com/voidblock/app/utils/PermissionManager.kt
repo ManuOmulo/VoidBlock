@@ -161,6 +161,46 @@ class PermissionManager(private val context: Context) {
             context.startActivity(intent)
         }
     }
+
+    /**
+     * Check if the BlockingAccessibilityService is enabled
+     */
+    fun hasAccessibilityPermission(): Boolean {
+        val serviceName = "${context.packageName}/${com.voidblock.app.services.BlockingAccessibilityService::class.java.name}"
+        val accessibilityEnabled = try {
+            Settings.Secure.getInt(context.contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED)
+        } catch (e: Exception) {
+            0
+        }
+        
+        if (accessibilityEnabled == 1) {
+            val settingValue = Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            )
+            if (settingValue != null) {
+                val splitter = android.text.TextUtils.SimpleStringSplitter(':')
+                splitter.setString(settingValue)
+                while (splitter.hasNext()) {
+                    val accessibilityService = splitter.next()
+                    if (accessibilityService.equals(serviceName, ignoreCase = true)) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+
+    /**
+     * Request Accessibility permission by opening settings
+     */
+    fun requestAccessibilityPermission() {
+        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        context.startActivity(intent)
+    }
     
     /**
      * Check all critical permissions at once
@@ -169,6 +209,7 @@ class PermissionManager(private val context: Context) {
         return mapOf(
             "usageStats" to hasUsageStatsPermission(),
             "overlay" to hasOverlayPermission(),
+            "accessibility" to hasAccessibilityPermission(),
             "notification" to hasNotificationPermission(),
             "batteryOptimization" to isBatteryOptimizationDisabled(),
             "exactAlarms" to canScheduleExactAlarms()
@@ -179,7 +220,9 @@ class PermissionManager(private val context: Context) {
      * Check if all critical permissions are granted
      */
     fun hasAllCriticalPermissions(): Boolean {
-        return hasUsageStatsPermission() && hasOverlayPermission()
+        return hasUsageStatsPermission() && 
+               hasOverlayPermission() && 
+               hasAccessibilityPermission()
     }
     
     /**
@@ -190,6 +233,7 @@ class PermissionManager(private val context: Context) {
         
         if (!hasUsageStatsPermission()) missing.add("Usage Stats")
         if (!hasOverlayPermission()) missing.add("Display Overlay")
+        if (!hasAccessibilityPermission()) missing.add("Accessibility Service")
         if (!hasNotificationPermission()) missing.add("Notifications")
         if (!isBatteryOptimizationDisabled()) missing.add("Battery Optimization")
         if (!canScheduleExactAlarms()) missing.add("Exact Alarms")
