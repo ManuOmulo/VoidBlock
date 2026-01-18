@@ -62,6 +62,9 @@ class BlockingService : Service() {
     private var currentOverlayView: View? = null
     private var lastOverlayPackage: String? = null
     private var lastOverlayTime: Long = 0
+    private var lastDismissalTime: Long = 0  // Cooldown after user clicks "Close"
+    private var overlayRemovalRequestedAt: Long = 0  // Delayed removal during swipe animations
+    private var lastAccessibilityBlockedAt: Long = 0  // Trust Accessibility detection for a period
     
     // Session Tracking
     private var currentForegroundPackage: String? = null
@@ -136,20 +139,29 @@ class BlockingService : Service() {
                 val pkgName = intent.getStringExtra(EXTRA_PACKAGE_NAME)
                 if (pkgName != null) {
                     scope.launch {
+                        // Skip if user just dismissed the overlay (cooldown)
+                        if (System.currentTimeMillis() - lastDismissalTime < 1000) {
+                            return@launch
+                        }
                         // Immediately check the app notified by accessibility service
                         if (blockedPackages.contains(pkgName)) {
                             if (pkgName != packageName && !pkgName.contains("com.voidblock.app")) {
                                 android.util.Log.d("BlockingService", "ACCESSIBILITY TRIGGER: $pkgName is blocked!")
-                                lastOverlayPackage = pkgName // Force update
+                                // Reset removal timer - we're on a blocked app
+                                overlayRemovalRequestedAt = 0L
+                                lastAccessibilityBlockedAt = System.currentTimeMillis()  // Trust this for 2 seconds
+                                lastOverlayPackage = pkgName
+                                lastOverlayTime = System.currentTimeMillis()
                                 showBlockingOverlay(pkgName)
                             }
-                        } else {
-                            // If it's not a blocked app, check if we should remove overlay
-                            checkForegroundApp()
                         }
+
+                        // NOTE: Don't call checkForegroundApp() for non-blocked apps here.
+                        // Let the monitoring loop handle removal with its delayed logic.
                     }
                 }
             }
+
         }
 
         // Always Update Blocked Apps on start/command to ensure sync
@@ -626,6 +638,11 @@ class BlockingService : Service() {
                 return
             }
 
+            // Skip if user just dismissed the overlay (cooldown to prevent flash)
+            if (now - lastDismissalTime < 1000) {
+                return
+            }
+
             // Cooldown to prevent "machine gun" launches of the overlay
             // If we launched an overlay for THIS package in the last 2 seconds, skip
             if (foregroundPackage == lastOverlayPackage && now - lastOverlayTime < 2000) {
@@ -634,6 +651,7 @@ class BlockingService : Service() {
 
             android.util.Log.d("BlockingService", "BLOCKED APP DETECTED: $foregroundPackage - showing overlay")
 
+            overlayRemovalRequestedAt = 0L  // Reset removal timer since we're on a blocked app
             lastOverlayTime = now
             lastOverlayPackage = foregroundPackage
 
@@ -643,8 +661,28 @@ class BlockingService : Service() {
             // Blocked app detected - show blocking overlay
             showBlockingOverlay(foregroundPackage)
         } else {
-            // App is not blocked, ensure overlay is removed
-            removeOverlay()
+            // Non-blocked app detected - but wait to confirm it's not a brief flicker during swipe
+            if (currentOverlayView != null) {
+                // Trust Accessibility Service detection for 2 seconds
+                // During swipe animations, getForegroundApp() can be unreliable
+                if (now - lastAccessibilityBlockedAt < 2000) {
+                    // Accessibility recently confirmed a blocked app, ignore monitoring loop's detection
+                    overlayRemovalRequestedAt = 0L  // Reset removal timer
+                    return
+                }
+                
+                if (overlayRemovalRequestedAt == 0L) {
+                    // First time seeing non-blocked app, start the timer
+                    overlayRemovalRequestedAt = now
+                    android.util.Log.d("BlockingService", "Overlay removal requested, waiting 500ms to confirm...")
+                } else if (now - overlayRemovalRequestedAt > 500) {
+                    // Confirmed: user has been on non-blocked app for 500ms, safe to remove
+                    android.util.Log.d("BlockingService", "Confirmed non-blocked foreground for 500ms, removing overlay")
+                    removeOverlay()
+                    overlayRemovalRequestedAt = 0L
+                }
+                // Otherwise, wait for next check cycle
+            }
         }
     }
 
@@ -748,6 +786,7 @@ class BlockingService : Service() {
 
                 removeOverlay() // Clear existing if any
 
+
                 val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
                 val overlayView = inflater.inflate(R.layout.activity_blocking_overlay, null)
 
@@ -787,6 +826,7 @@ class BlockingService : Service() {
 
                 // Set up button
                 closeButton.setOnClickListener {
+                    lastDismissalTime = System.currentTimeMillis()
                     navigateToHomeInternal()
                     removeOverlay()
                 }
