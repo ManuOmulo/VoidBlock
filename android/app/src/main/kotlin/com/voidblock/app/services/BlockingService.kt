@@ -924,14 +924,14 @@ class BlockingService : Service() {
      */
     private fun endFocusSession(type: String, relatedId: Long?) {
         val now = System.currentTimeMillis()
-        
-        // 1. Safety fallback: End ALL active sessions of this type in DB
-        // This handles cases where the service was restarted and the map is empty
-        scope.launch(Dispatchers.IO) {
-            focusSessionDao.endSessionsByType(type, now)
-        }
 
         if (relatedId == null) {
+            // 1. Safety fallback: End ALL active sessions of this type in DB
+            // This handles cases where the service was restarted and the map is empty
+            scope.launch(Dispatchers.IO) {
+                focusSessionDao.endSessionsByType(type, now)
+            }
+
             // End ALL sessions of this type in the in-memory map
             val keysToEnd = activeFocusSessionIds.keys.filter { it.startsWith("${type}") }
             if (keysToEnd.isEmpty()) {
