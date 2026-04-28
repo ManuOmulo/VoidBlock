@@ -136,7 +136,34 @@ class AppLimitChannel(private val context: Context) : MethodChannel.MethodCallHa
                     database.appLimitDao().getAllLimits()
                 }
                 
-                val limitsList = limits.map { limit ->
+                val now = System.currentTimeMillis()
+                val expiredLimitIds = mutableListOf<Long>()
+                
+                // Check for expired HARD mode limits
+                for (limit in limits) {
+                    if (limit.isStrictMode && limit.strictModeLevel == "HARD" && limit.hardModeEndsAt != null) {
+                        if (now >= limit.hardModeEndsAt) {
+                            expiredLimitIds.add(limit.id)
+                        }
+                    }
+                }
+                
+                // Delete expired limits from database
+                if (expiredLimitIds.isNotEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        for (limitId in expiredLimitIds) {
+                            val limit = database.appLimitDao().getLimitById(limitId)
+                            if (limit != null) {
+                                database.appLimitDao().deleteLimit(limit)
+                            }
+                        }
+                    }
+                }
+                
+                // Filter out expired limits and build response
+                val limitsList = limits.filter { limit ->
+                    !expiredLimitIds.contains(limit.id)
+                }.map { limit ->
                     val apps = withContext(Dispatchers.IO) {
                         database.appLimitDao().getAppsForLimit(limit.id)
                     }
