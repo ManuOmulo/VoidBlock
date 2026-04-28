@@ -6,10 +6,10 @@ class PeakUsageHeatmap extends StatefulWidget {
   const PeakUsageHeatmap({Key? key}) : super(key: key);
 
   @override
-  State<PeakUsageHeatmap> createState() => _PeakUsageHeatmapState();
+  State<PeakUsageHeatmap> createState() => PeakUsageHeatmapState();
 }
 
-class _PeakUsageHeatmapState extends State<PeakUsageHeatmap> {
+class PeakUsageHeatmapState extends State<PeakUsageHeatmap> {
   final AnalyticsService _analyticsService = AnalyticsService();
   List<int> _hourlyData = List.filled(24, 0);
   bool _isLoading = true;
@@ -35,6 +35,11 @@ class _PeakUsageHeatmapState extends State<PeakUsageHeatmap> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  /// Public method to refresh the peak usage data
+  Future<void> refresh() async {
+    await _loadData();
   }
 
   @override

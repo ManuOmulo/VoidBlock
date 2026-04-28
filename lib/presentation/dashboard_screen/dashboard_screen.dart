@@ -40,6 +40,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   final GlobalKey<ActiveSchedulesWidgetState> _schedulesKey = GlobalKey();
   final GlobalKey<BlockedAppsWidgetState> _blockedAppsKey = GlobalKey();
   final GlobalKey<ActiveLimitsWidgetState> _limitsKey = GlobalKey();
+  final GlobalKey<PeakUsageHeatmapState> _peakUsageKey = GlobalKey();
 
   Timer? _autoRefreshTimer;
   bool _isScreenVisible = true;
@@ -142,7 +143,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       _schedulesKey.currentState?.refresh() ?? Future.value(),
       _blockedAppsKey.currentState?.refresh() ?? Future.value(),
       _limitsKey.currentState?.refresh() ?? Future.value(),
-    ]);
+      _peakUsageKey.currentState?.refresh() ?? Future.value(),
+    ] as Iterable<Future>);
   }
 
   Future<void> _checkPermissions() async {
@@ -165,7 +167,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       _schedulesKey.currentState?.refresh() ?? Future.value(),
       _blockedAppsKey.currentState?.refresh() ?? Future.value(),
       _limitsKey.currentState?.refresh() ?? Future.value(),
-    ]);
+      _peakUsageKey.currentState?.refresh() ?? Future.value(),
+    ] as Iterable<Future>);
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -281,7 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     children: [
                       ActiveSessionWidget(key: _activeSessionKey),
                       DailyStatsWidget(key: _statsKey),
-                      PeakUsageHeatmap(),
+                      PeakUsageHeatmap(key: _peakUsageKey),
                       SizedBox(height: 8),
                       InsightsWidget(key: _insightsKey),
                       ActiveLimitsWidget(key: _limitsKey),

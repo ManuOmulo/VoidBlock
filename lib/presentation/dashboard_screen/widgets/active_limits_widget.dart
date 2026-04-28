@@ -115,9 +115,9 @@ class ActiveLimitsWidgetState extends State<ActiveLimitsWidget> {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   child: Text(
                     'Manage',
-                    style: theme.textTheme.labelLarge?.copyWith(
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.primary,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
