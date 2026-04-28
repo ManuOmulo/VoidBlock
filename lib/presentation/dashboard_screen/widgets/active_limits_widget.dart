@@ -215,7 +215,7 @@ class ActiveLimitsWidgetState extends State<ActiveLimitsWidget> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildAppsIcons(limit.apps),
+                  _buildAppsIcons(limit),
                 ],
               ),
             );
@@ -240,7 +240,8 @@ class ActiveLimitsWidgetState extends State<ActiveLimitsWidget> {
     );
   }
 
-  Widget _buildAppsIcons(List<dynamic> apps) {
+  Widget _buildAppsIcons(AppLimit limit) {
+    final apps = limit.apps;
     return Row(
       children: [
         for (var i = 0; i < apps.length && i < 6; i++)
@@ -252,11 +253,49 @@ class ActiveLimitsWidgetState extends State<ActiveLimitsWidget> {
           Text('+${apps.length - 6}',
               style: const TextStyle(fontSize: 10, color: Colors.grey)),
         const Spacer(),
-        if (_getTimeLeftString(_activeLimits.first).isNotEmpty)
-          Text(_getTimeLeftString(_activeLimits.first),
-              style: const TextStyle(fontSize: 10, color: Colors.grey)),
+        ..._buildTimingInfo(limit),
       ],
     );
+  }
+
+  List<Widget> _buildTimingInfo(AppLimit limit) {
+    final widgets = <Widget>[];
+
+    // Show hard mode expiry only if the limit has HARD mode with an active end time
+    if (limit.isStrictMode &&
+        limit.strictModeLevel == 'HARD' &&
+        limit.hardModeEndsAt != null) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final diff = limit.hardModeEndsAt! - now;
+      if (diff > 0) {
+        final days = diff ~/ (24 * 60 * 60 * 1000);
+        final hours = (diff % (24 * 60 * 60 * 1000)) ~/ (60 * 60 * 1000);
+        final mins = (diff % (60 * 60 * 1000)) ~/ (60 * 1000);
+        String expiryText;
+        if (days > 0) {
+          expiryText = 'Expires: ${days}d ${hours}h';
+        } else if (hours > 0) {
+          expiryText = 'Expires: ${hours}h ${mins}m';
+        } else {
+          expiryText = 'Expires: ${mins}m';
+        }
+        widgets.add(Text(expiryText,
+            style: const TextStyle(
+                fontSize: 10,
+                color: Colors.red,
+                fontWeight: FontWeight.w600)));
+        widgets.add(const SizedBox(width: 6));
+        widgets.add(const Text('•',
+            style: TextStyle(fontSize: 10, color: Colors.grey)));
+        widgets.add(const SizedBox(width: 6));
+      }
+    }
+
+    // Always show resets at midnight for all limits
+    widgets.add(const Text('Resets at midnight',
+        style: TextStyle(fontSize: 10, color: Colors.grey)));
+
+    return widgets;
   }
 
   Widget _buildAppIcon(String packageName) {
@@ -283,20 +322,5 @@ class ActiveLimitsWidgetState extends State<ActiveLimitsWidget> {
       backgroundColor: Colors.grey.shade200,
       child: const Icon(Icons.apps_rounded, size: 12, color: Colors.grey),
     );
-  }
-
-  String _getTimeLeftString(AppLimit limit) {
-    if (limit.isStrictMode &&
-        limit.strictModeLevel == 'HARD' &&
-        limit.hardModeEndsAt != null) {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final diff = limit.hardModeEndsAt! - now;
-      if (diff > 0) {
-        final days = diff ~/ (24 * 60 * 60 * 1000);
-        final hours = (diff % (24 * 60 * 60 * 1000)) ~/ (60 * 60 * 1000);
-        return 'Expires in: ${days}d ${hours}h';
-      }
-    }
-    return 'Resets at midnight';
   }
 }

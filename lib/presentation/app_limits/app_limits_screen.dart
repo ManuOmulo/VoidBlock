@@ -246,9 +246,71 @@ class _AppLimitsScreenState extends State<AppLimitsScreen> {
                       _buildStrictModeBadge(limit.strictModeLevel, theme),
                   ],
                 ),
+                // Show hard mode expiry info
+                if (limit.isStrictMode && limit.strictModeLevel == 'HARD')
+                  _buildHardModeInfo(limit, theme),
+                // Always show resets at midnight
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.refresh_rounded,
+                          size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text('Resets at midnight',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey)),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHardModeInfo(AppLimit limit, ThemeData theme) {
+    if (limit.hardModeEndsAt == null) return const SizedBox.shrink();
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final diff = limit.hardModeEndsAt! - now;
+
+    if (diff <= 0) return const SizedBox.shrink();
+
+    final days = diff ~/ (24 * 60 * 60 * 1000);
+    final hours = (diff % (24 * 60 * 60 * 1000)) ~/ (60 * 60 * 1000);
+    final mins = (diff % (60 * 60 * 1000)) ~/ (60 * 1000);
+
+    String timeText;
+    if (days > 0) {
+      timeText = '${days}d ${hours}h remaining';
+    } else if (hours > 0) {
+      timeText = '${hours}h ${mins}m remaining';
+    } else {
+      timeText = '${mins}m remaining';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.red.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.lock_clock_rounded, size: 16, color: Colors.red),
+            SizedBox(width: 8),
+            Text('Hard mode: $timeText',
+                style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red.shade700,
+                    fontWeight: FontWeight.w600)),
+          ],
         ),
       ),
     );
