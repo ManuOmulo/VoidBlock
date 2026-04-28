@@ -339,6 +339,10 @@ class _BlockedAppTimerState extends State<_BlockedAppTimer> {
 
   @override
   Widget build(BuildContext context) {
+    final hours = _remainingMinutes ~/ 60;
+    final minutes = _remainingMinutes % 60;
+    final timeText = hours > 0 ? '${hours}h ${minutes}m left' : '${minutes}m left';
+
     return Row(
       children: [
         Icon(
@@ -348,7 +352,7 @@ class _BlockedAppTimerState extends State<_BlockedAppTimer> {
         ),
         SizedBox(width: 4),
         Text(
-          '${_remainingMinutes}m left',
+          timeText,
           style: widget.style,
         ),
       ],

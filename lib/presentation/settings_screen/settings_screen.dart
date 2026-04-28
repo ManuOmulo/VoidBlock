@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sizer/sizer.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../core/app_export.dart';
 
 import '../../services/analytics_service.dart';
@@ -18,11 +19,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AnalyticsService _analyticsService = AnalyticsService();
 
   bool _isLoading = true;
+  String _appVersion = 'Loading...';
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _loadAppVersion();
   }
 
   Future<void> _loadSettings() async {
@@ -31,6 +34,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       setState(() {
         _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() {
+        _appVersion = 'VoidBlock v${info.version}';
       });
     }
   }
@@ -163,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   padding: const EdgeInsets.all(24.0),
                   child: Center(
                     child: Text(
-                      'VoidBlock v1.0.0',
+                      _appVersion,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color:
                             theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
