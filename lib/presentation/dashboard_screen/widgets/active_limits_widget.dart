@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../../../core/app_export.dart';
 import '../../../services/app_limit_service.dart';
 import '../../../services/analytics_service.dart';
 import '../../../widgets/custom_image_widget.dart';
@@ -106,7 +107,7 @@ class ActiveLimitsWidgetState extends State<ActiveLimitsWidget> {
               ),
               InkWell(
                 onTap: () {
-                  Navigator.pushNamed(context, '/app-limits');
+                  Navigator.pushNamed(context, AppRoutes.appLimits);
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Padding(
