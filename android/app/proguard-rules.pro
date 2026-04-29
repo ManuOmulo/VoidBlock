@@ -1,10 +1,11 @@
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningActivity$g
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningActivityStarter$Args
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningActivityStarter$Error
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningActivityStarter
--dontwarn com.stripe.android.pushProvisioning.PushProvisioningEphemeralKeyProvider
-# Keep Stripe classes
--keep class com.stripe.** { *; }
+# Flutter obfuscation
+-keep class io.flutter.app.** { *; }
+-keep class io.flutter.plugin.**  { *; }
+-keep class io.flutter.util.**  { *; }
+-keep class io.flutter.view.**  { *; }
+-keep class io.flutter.**  { *; }
+-keep class io.flutter.plugins.**  { *; }
+-dontwarn io.flutter.embedding.**
 
 # Room Database
 -keepclassmembers class * extends androidx.room.RoomDatabase {
@@ -28,3 +29,10 @@
 # Keep Flutter/Native channel classes
 -keep class com.voidblock.app.channels.** { *; }
 -keep class com.voidblock.app.services.** { *; }
+
+# WorkManager
+-keep class androidx.work.** { *; }
+-dontwarn androidx.work.**
+
+# Lifecycle components
+-keep class androidx.lifecycle.** { *; }
