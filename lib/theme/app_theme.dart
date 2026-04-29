@@ -134,15 +134,15 @@ class AppTheme {
       elevation: 8.0,
       type: BottomNavigationBarType.fixed,
       selectedLabelStyle: GoogleFonts.inter(
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.4,
       ),
       unselectedLabelStyle: GoogleFonts.inter(
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: FontWeight.w400,
         letterSpacing: 0.4,
-      ),
+      )
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: primaryLight,
@@ -423,15 +423,15 @@ class AppTheme {
       elevation: 8.0,
       type: BottomNavigationBarType.fixed,
       selectedLabelStyle: GoogleFonts.inter(
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: FontWeight.w500,
         letterSpacing: 0.4,
       ),
       unselectedLabelStyle: GoogleFonts.inter(
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: FontWeight.w400,
         letterSpacing: 0.4,
-      ),
+      )
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: primaryDark,

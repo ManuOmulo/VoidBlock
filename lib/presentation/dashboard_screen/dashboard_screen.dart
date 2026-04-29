@@ -273,7 +273,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       body: SafeArea(
         child: Column(
           children: [
-            GreetingHeaderWidget(),
+            GreetingHeaderWidget(
+              onSettingsPressed: () => Navigator.pushNamed(context, '/settings-screen'),
+            ),
             Expanded(
               child: RefreshIndicator(
                 key: _refreshIndicatorKey,

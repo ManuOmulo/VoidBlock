@@ -7,7 +7,9 @@ import '../../../widgets/custom_icon_widget.dart';
 
 /// Greeting header widget showing personalized greeting and current time
 class GreetingHeaderWidget extends StatefulWidget {
-  const GreetingHeaderWidget({Key? key}) : super(key: key);
+  final VoidCallback? onSettingsPressed;
+
+  const GreetingHeaderWidget({Key? key, this.onSettingsPressed}) : super(key: key);
 
   @override
   State<GreetingHeaderWidget> createState() => _GreetingHeaderWidgetState();
@@ -120,57 +122,17 @@ class _GreetingHeaderWidgetState extends State<GreetingHeaderWidget> {
             ),
           ),
           const SizedBox(width: 16),
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(14),
+          IconButton(
+            icon: CustomIconWidget(
+              iconName: 'settings',
+              color: theme.colorScheme.onSurface,
+              size: 24,
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildActionButton(
-                  icon: Icons.timer_rounded,
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/app-limits-screen'),
-                  theme: theme,
-                ),
-                const SizedBox(width: 4),
-                _buildActionButton(
-                  iconWidget: CustomIconWidget(
-                    iconName: 'settings',
-                    color: theme.colorScheme.onSurface,
-                    size: 20,
-                  ),
-                  onPressed: () =>
-                      Navigator.pushNamed(context, '/settings-screen'),
-                  theme: theme,
-                ),
-              ],
-            ),
+            onPressed: widget.onSettingsPressed,
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    IconData? icon,
-    Widget? iconWidget,
-    required VoidCallback onPressed,
-    required ThemeData theme,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        child: iconWidget ??
-            Icon(
-              icon,
-              size: 20,
-              color: theme.colorScheme.onSurface,
-            ),
       ),
     );
   }

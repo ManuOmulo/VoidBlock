@@ -39,7 +39,7 @@ class CustomBottomBar extends StatelessWidget {
           route: '/dashboard-screen',
           icon: Icons.dashboard_outlined,
           activeIcon: Icons.dashboard,
-          label: 'Dashboard',
+          label: 'Home',
         ),
         CustomBottomBarItem(
           route: '/schedule-management-screen',
@@ -52,6 +52,12 @@ class CustomBottomBar extends StatelessWidget {
           icon: Icons.block_outlined,
           activeIcon: Icons.block,
           label: 'Block',
+        ),
+        CustomBottomBarItem(
+          route: '/app-limits-screen',
+          icon: Icons.timer_outlined,
+          activeIcon: Icons.timer,
+          label: 'Limits',
         ),
         CustomBottomBarItem(
           route: '/insights-screen',
