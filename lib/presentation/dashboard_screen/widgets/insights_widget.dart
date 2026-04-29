@@ -84,23 +84,28 @@ class InsightsWidgetState extends State<InsightsWidget> {
     final severity = insight['severity'] as String? ?? 'NEUTRAL';
 
     Color cardColor;
+    Color iconColor;
     IconData icon;
 
     switch (severity) {
       case 'POSITIVE':
         cardColor = theme.colorScheme.primaryContainer;
+        iconColor = theme.colorScheme.onPrimaryContainer;
         icon = Icons.star;
         break;
       case 'RECOMMENDATION':
         cardColor = theme.colorScheme.tertiaryContainer;
+        iconColor = theme.colorScheme.onTertiaryContainer;
         icon = Icons.lightbulb_outline;
         break;
       case 'NEGATIVE':
         cardColor = theme.colorScheme.errorContainer;
+        iconColor = theme.colorScheme.onErrorContainer;
         icon = Icons.warning_amber;
         break;
       default:
         cardColor = theme.colorScheme.secondaryContainer;
+        iconColor = theme.colorScheme.onSecondaryContainer;
         icon = insight['type'] == 'RECOMMENDATION'
             ? Icons.lightbulb_outline
             : Icons.info_outline;
@@ -126,7 +131,7 @@ class InsightsWidgetState extends State<InsightsWidget> {
                 shape: BoxShape.circle,
               ),
               child: Icon(icon,
-                  color: theme.colorScheme.onSecondaryContainer, size: 20),
+                  color: iconColor, size: 20),
             ),
             SizedBox(width: 16),
             Expanded(
@@ -142,7 +147,7 @@ class InsightsWidgetState extends State<InsightsWidget> {
                   SizedBox(height: 4),
                   Text(
                     insight['message'] as String? ?? '',
-                    style: theme.textTheme.bodyMedium?.copyWith(
+                    style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurfaceVariant,
                     ),
                   ),

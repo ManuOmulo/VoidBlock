@@ -66,7 +66,7 @@ class InsightsGenerator {
         appBreakdown: List<AppUsageBreakdown>,
         logs: List<UsageLogEntity>,
         focusSessions: List<com.voidblock.app.data.database.entities.FocusSessionEntity>,
-        productivityScore: Double
+        productiveRatio: Double
     ): List<Insight> {
         val recommendations = mutableListOf<Insight>()
         val achievements = mutableListOf<Insight>()
@@ -109,8 +109,8 @@ class InsightsGenerator {
             }
         }
         
-        // 2. Enhanced Productivity Score
-        val productivityInsight = generateProductivityInsight(productivityScore, dailySummary)
+        // 2. Enhanced Productive Ratio
+        val productivityInsight = generateProductiveRatioInsight(productiveRatio, dailySummary)
         if (productivityInsight.severity == "POSITIVE") {
             achievements.add(productivityInsight)
         } else {
@@ -358,7 +358,7 @@ class InsightsGenerator {
         return Pair(topCategory.key, percentage)
     }
     
-    private fun generateProductivityInsight(score: Double, dailySummary: List<DailyUsageSummary>): Insight {
+    private fun generateProductiveRatioInsight(productiveRatio: Double, dailySummary: List<DailyUsageSummary>): Insight {
         val weekAgoComparison = if (dailySummary.size >= 14) {
             val thisWeek = dailySummary.take(7).sumOf { it.blockedCount }
             val lastWeek = dailySummary.drop(7).take(7).sumOf { it.blockedCount }
@@ -371,25 +371,32 @@ class InsightsGenerator {
         val contextSuffix = if (weekAgoComparison != null) " ($weekAgoComparison)" else ""
         
         return when {
-            score >= 80 -> Insight(
+            productiveRatio >= 50 -> Insight(
                 type = "ACHIEVEMENT",
                 title = "Excellent Focus!",
-                message = "Your productivity score is outstanding$contextSuffix",
-                value = "${score.toInt()}%",
+                message = "Your productive ratio is outstanding$contextSuffix",
+                value = "${productiveRatio.toInt()}%",
                 severity = "POSITIVE"
             )
-            score >= 60 -> Insight(
+            productiveRatio >= 30 -> Insight(
                 type = "TREND",
                 title = "Good Progress",
-                message = "You're maintaining good focus habits$contextSuffix",
-                value = "${score.toInt()}%",
+                message = "Your productive ratio is good$contextSuffix",
+                value = "${productiveRatio.toInt()}%",
                 severity = "NEUTRAL"
+            )
+            productiveRatio >= 15 -> Insight(
+                type = "RECOMMENDATION",
+                title = "Room for Improvement",
+                message = "Your productive ratio needs improvement$contextSuffix",
+                value = "${productiveRatio.toInt()}%",
+                severity = "RECOMMENDATION"
             )
             else -> Insight(
                 type = "RECOMMENDATION",
-                title = "Room for Improvement",
-                message = "Try creating more blocking schedules to boost productivity$contextSuffix",
-                value = "${score.toInt()}%",
+                title = "Low Productive Ratio",
+                message = "Your productive ratio is low. Try longer focus sessions$contextSuffix",
+                value = "${productiveRatio.toInt()}%",
                 severity = "RECOMMENDATION"
             )
         }

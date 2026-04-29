@@ -19,7 +19,7 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
   int _blockedTries = 0;
   String _weeklyFocusTime = '0m';
   int _weeklyBlockedTries = 0;
-  double _productivityScore = 0.0;
+  double _productiveRatio = 0.0;
   bool _isLoading = true;
 
   @override
@@ -47,11 +47,11 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
                 onTimeout: () => {},
               );
 
-      final score =
-          await _analyticsService.getProductivityScore(days: 7).timeout(
-                Duration(seconds: 5),
-                onTimeout: () => 0.0,
-              );
+      // Get comparison data for productive ratio
+      final comparisonData = await _analyticsService.getComparisonData().timeout(
+            Duration(seconds: 5),
+            onTimeout: () => {},
+          );
 
       if (mounted) {
         setState(() {
@@ -65,7 +65,10 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
           _weeklyFocusTime = _formatDuration(weeklyFocusMs);
           _weeklyBlockedTries = (weeklyStats['blockedCount'] as int?) ?? 0;
 
-          _productivityScore = score;
+          // Productive ratio from comparison data
+          final productiveRatioData = comparisonData['productiveRatio'] as Map?;
+          _productiveRatio = (productiveRatioData?['currentDayTotal'] as num?)?.toDouble() ?? 0.0;
+
           _isLoading = false;
         });
       }
@@ -304,78 +307,83 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
   }
 
   Widget _buildProductivityScore(BuildContext context, ThemeData theme) {
-    final score = _productivityScore.round();
-    final progress = _productivityScore / 100;
+    final ratio = _productiveRatio.round();
+    final progress = _productiveRatio / 100;
+    final ratioColor = _getRatioColor(ratio, theme);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _getContainerColor(ratioColor).withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: ratioColor.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Productivity Score',
+                  'Productive Ratio',
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                    color: ratioColor,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
-                  _getScoreMessage(score),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  _getRatioMessage(ratio),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: ratioColor.withValues(alpha: 0.8),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: _getScoreColor(score, theme).withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(50),
-              ),
-              child: Text(
-                '$score%',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: _getScoreColor(score, theme),
-                ),
+            Text(
+              '$ratio%',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: ratioColor,
               ),
             ),
           ],
         ),
-        SizedBox(height: 16),
-        Container(
-          height: 12,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                _getScoreColor(score, theme),
-              ),
-            ),
+        const SizedBox(height: 16),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: theme.colorScheme.surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation<Color>(ratioColor),
+            minHeight: 8,
           ),
         ),
       ],
+    ),
     );
   }
 
-  Color _getScoreColor(int score, ThemeData theme) {
-    if (score >= 80) return theme.colorScheme.secondary;
-    if (score >= 60) return theme.colorScheme.primary;
-    if (score >= 40) return AppTheme.warningLight;
+  Color _getContainerColor(Color baseColor) {
+    return Color.lerp(baseColor, Colors.white, 0.7) ?? baseColor;
+  }
+
+  Color _getRatioColor(int ratio, ThemeData theme) {
+    if (ratio >= 50) return theme.colorScheme.secondary;
+    if (ratio >= 30) return theme.colorScheme.primary;
+    if (ratio >= 15) return AppTheme.warningLight;
     return theme.colorScheme.error;
   }
 
-  String _getScoreMessage(int score) {
-    if (score >= 80) return 'Excellent! Keep up the great work!';
-    if (score >= 60) return 'Good progress! Stay focused!';
-    if (score >= 40) return 'You can do better! Stay committed!';
-    return 'Let\'s improve together!';
+  String _getRatioMessage(int ratio) {
+    if (ratio >= 50) return 'Excellent! Most of your screen time is productive!';
+    if (ratio >= 30) return 'Good progress! You\'re balancing well!';
+    if (ratio >= 15) return 'Room for improvement! Try longer focus sessions.';
+    return 'Let\'s increase your productive time!';
   }
 }

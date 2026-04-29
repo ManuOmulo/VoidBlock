@@ -28,6 +28,10 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
     private val database = AppDatabase.getInstance(context)
     private val productivityCalculator = ProductivityCalculator()
     private val insightsGenerator = InsightsGenerator()
+    
+    // Cache for screen time calculations to improve performance
+    private val screenTimeCache = mutableMapOf<String, Pair<Long, Long>>() // startTime -> (timestamp, screenTime)
+    private val CACHE_DURATION_MS = 5 * 60 * 1000L // 5 minutes
     private val scope = CoroutineScope(Dispatchers.Main)
     private val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
     
@@ -218,10 +222,9 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     }
                     
                     val estimatedTimeSaved = rawBlockedTime + (blockedCount * avgSessionDurationMs)
-                    
-                    // Real System Usage Total
-                    val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
-                    val totalSystemUsageMs = systemStats.values.sumOf { it.totalTimeInForeground }
+
+                    // Real System Usage Total - Use UsageEvents for accurate midnight reset
+                    val totalSystemUsageMs = calculateScreenTimeFromEventsCached(startTime, System.currentTimeMillis())
                     
                     mapOf(
                         "blockedTime" to estimatedTimeSaved,
@@ -253,9 +256,8 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     val logs = database.usageLogDao().getLogsForPastDays(startTime)
                     val blockedCount = logs.filter { it.wasBlocked }.size
                     val totalBlockedTime = logs.filter { it.wasBlocked }.sumOf { it.durationMillis }
-                    
-                    val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
-                    val totalUsageTime = systemStats.values.sumOf { it.totalTimeInForeground }
+
+                    val totalUsageTime = calculateScreenTimeFromEventsCached(startTime, System.currentTimeMillis())
                     
                     productivityCalculator.calculateProductivityScore(blockedCount, totalBlockedTime, totalUsageTime, days)
                 }
@@ -281,8 +283,11 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 }
                 
                 val appsList = withContext(Dispatchers.IO) {
+                    val totalScreenTime = calculateScreenTimeFromEventsCached(startTime, System.currentTimeMillis())
+
+                    // For app breakdown, we still need individual app stats
                     val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
-                    
+
                     systemStats.values
                         .filter { it.totalTimeInForeground > 0 }
                         .sortedByDescending { it.totalTimeInForeground }
@@ -340,14 +345,17 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     
                     val blockedCount = logs.filter { it.wasBlocked }.size
                     val totalBlockedTime = logs.filter { it.wasBlocked }.sumOf { it.durationMillis }
-                    val systemStats = usageStatsManager.queryAndAggregateUsageStats(startTime, System.currentTimeMillis())
-                    val totalUsageTime = systemStats.values.sumOf { it.totalTimeInForeground }
+                    val totalUsageTime = calculateScreenTimeFromEventsCached(startTime, System.currentTimeMillis())
                     
                     val focusSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(startTime, System.currentTimeMillis())
-                    
-                    val score = productivityCalculator.calculateProductivityScore(blockedCount, totalBlockedTime, totalUsageTime, days)
-                    
-                    insightsGenerator.generateInsights(dailySummary, appBreakdown, logs, focusSessions, score)
+
+                    // Calculate productive ratio: (focusTime / screenTime) × 100
+                    val totalFocusTime = mergeIntervals(focusSessions, startTime, System.currentTimeMillis())
+                    val productiveRatio = if (totalUsageTime > 0) {
+                        (totalFocusTime.toDouble() / totalUsageTime.toDouble()) * 100.0
+                    } else 0.0
+
+                    insightsGenerator.generateInsights(dailySummary, appBreakdown, logs, focusSessions, productiveRatio)
                 }
                 
                 val insightsList = insights.map { insight ->
@@ -501,8 +509,7 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                         
                         // Estimate total usage for productivity score (or use a placeholder if not available for export window)
                         // For the summary row in CSV, let's keep it simple or fetch stats
-                        val stats = usageStatsManager.queryAndAggregateUsageStats(dayStart, dayEnd)
-                        val totalUsageTimeMs = stats.values.sumOf { it.totalTimeInForeground }
+                        val totalUsageTimeMs = calculateScreenTimeFromEventsCached(dayStart, dayEnd)
                         
                         val score = productivityCalculator.calculateProductivityScore(
                             blockedCount, totalBlockedTimeMs, totalUsageTimeMs, 1
@@ -768,18 +775,11 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 val sameDayLastWeekEnd = sameDayLastWeekStart + (24 * 60 * 60 * 1000L)
 
                 val comparisonData = withContext(Dispatchers.IO) {
-                    // Get system usage (screen time)
-                    val currentWeekSystemUsage = usageStatsManager.queryAndAggregateUsageStats(currentWeekStart, currentTime)
-                    val currentWeekScreenTime = currentWeekSystemUsage.values.sumOf { it.totalTimeInForeground }
-
-                    val previousWeekSystemUsage = usageStatsManager.queryAndAggregateUsageStats(previousWeekStart, previousWeekEnd)
-                    val previousWeekScreenTime = previousWeekSystemUsage.values.sumOf { it.totalTimeInForeground }
-
-                    val todaySystemUsage = usageStatsManager.queryAndAggregateUsageStats(todayStart, currentTime)
-                    val todayScreenTime = todaySystemUsage.values.sumOf { it.totalTimeInForeground }
-
-                    val sameDayLastWeekSystemUsage = usageStatsManager.queryAndAggregateUsageStats(sameDayLastWeekStart, sameDayLastWeekEnd)
-                    val sameDayLastWeekScreenTime = sameDayLastWeekSystemUsage.values.sumOf { it.totalTimeInForeground }
+                    // Get system usage (screen time) - Use UsageEvents for accurate midnight reset
+                    val currentWeekScreenTime = calculateScreenTimeFromEventsCached(currentWeekStart, currentTime)
+                    val previousWeekScreenTime = calculateScreenTimeFromEventsCached(previousWeekStart, previousWeekEnd)
+                    val todayScreenTime = calculateScreenTimeFromEventsCached(todayStart, currentTime)
+                    val sameDayLastWeekScreenTime = calculateScreenTimeFromEventsCached(sameDayLastWeekStart, sameDayLastWeekEnd)
 
                     // Get focus time (time saved)
                     val currentWeekSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(currentWeekStart, currentTime)
@@ -808,6 +808,26 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     val focusTimeWeekChange = calculatePercentageChange(currentWeekAverageFocusTime, previousWeekAverageFocusTime)
                     val focusTimeDayChange = calculatePercentageChange(todayFocusTime, sameDayLastWeekFocusTime)
 
+                    // Calculate productive ratio: (focusTime / screenTime) × 100
+                    val currentWeekAverageRatio = if (currentWeekAverageScreenTime > 0) {
+                        (currentWeekAverageFocusTime.toDouble() / currentWeekAverageScreenTime.toDouble()) * 100.0
+                    } else 0.0
+
+                    val previousWeekAverageRatio = if (previousWeekScreenTime > 0) {
+                        (previousWeekFocusTime.toDouble() / previousWeekScreenTime.toDouble()) * 100.0
+                    } else 0.0
+
+                    val todayRatio = if (todayScreenTime > 0) {
+                        (todayFocusTime.toDouble() / todayScreenTime.toDouble()) * 100.0
+                    } else 0.0
+
+                    val sameDayLastWeekRatio = if (sameDayLastWeekScreenTime > 0) {
+                        (sameDayLastWeekFocusTime.toDouble() / sameDayLastWeekScreenTime.toDouble()) * 100.0
+                    } else 0.0
+
+                    val ratioWeekChange = calculatePercentageChange(currentWeekAverageRatio.toLong(), previousWeekAverageRatio.toLong())
+                    val ratioDayChange = calculatePercentageChange(todayRatio.toLong(), sameDayLastWeekRatio.toLong())
+
                     mapOf(
                         "screenTime" to mapOf(
                             "lastWeekAverage" to (previousWeekAverageScreenTime / 60000).toInt(),
@@ -824,6 +844,14 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                             "lastWeekSameDay" to (sameDayLastWeekFocusTime / 60000).toInt(),
                             "weekOverWeekChange" to focusTimeWeekChange,
                             "dayOverDayChange" to focusTimeDayChange
+                        ),
+                        "productiveRatio" to mapOf(
+                            "lastWeekAverage" to previousWeekAverageRatio,
+                            "currentWeekAverage" to currentWeekAverageRatio,
+                            "currentDayTotal" to todayRatio,
+                            "lastWeekSameDay" to sameDayLastWeekRatio,
+                            "weekOverWeekChange" to ratioWeekChange,
+                            "dayOverDayChange" to ratioDayChange
                         )
                     )
                 }
@@ -874,5 +902,77 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
     private fun calculatePercentageChange(current: Long, previous: Long): Double {
         if (previous == 0L) return 0.0
         return ((current - previous).toDouble() / previous.toDouble()) * 100.0
+    }
+
+    /**
+     * Calculate total screen time using UsageEvents for accurate midnight reset
+     * This method queries individual events and filters by timestamp to ensure
+     * screen time resets correctly at midnight
+     */
+    private fun calculateScreenTimeFromEvents(startTime: Long, endTime: Long): Long {
+        val events = usageStatsManager.queryEvents(startTime, endTime)
+        val event = UsageEvents.Event()
+        val startTimes = mutableMapOf<String, Long>()
+        var totalScreenTime = 0L
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            val pkg = event.packageName ?: continue
+
+            when (event.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    startTimes[pkg] = event.timeStamp
+                }
+                UsageEvents.Event.MOVE_TO_BACKGROUND,
+                UsageEvents.Event.ACTIVITY_PAUSED,
+                UsageEvents.Event.ACTIVITY_STOPPED -> {
+                    val sessionStartTime = startTimes.remove(pkg)
+                    if (sessionStartTime != null && sessionStartTime >= startTime) {
+                        val duration = event.timeStamp - sessionStartTime
+                        totalScreenTime += duration
+                    }
+                }
+            }
+        }
+
+        // Handle apps currently in foreground
+        startTimes.forEach { (pkg, sessionStartTime) ->
+            if (sessionStartTime >= startTime) {
+                totalScreenTime += (endTime - sessionStartTime)
+            }
+        }
+
+        return totalScreenTime
+    }
+
+    /**
+     * Cached version of calculateScreenTimeFromEvents to improve performance
+     * Uses a 5-minute cache to avoid repeated expensive UsageEvents queries
+     */
+    private fun calculateScreenTimeFromEventsCached(startTime: Long, endTime: Long): Long {
+        val cacheKey = "${startTime}_$endTime"
+        val currentTime = System.currentTimeMillis()
+
+        // Check if we have a valid cache entry
+        val cached = screenTimeCache[cacheKey]
+        if (cached != null && (currentTime - cached.first) < CACHE_DURATION_MS) {
+            return cached.second
+        }
+
+        // Calculate fresh value
+        val screenTime = calculateScreenTimeFromEvents(startTime, endTime)
+
+        // Cache the result with current timestamp
+        screenTimeCache[cacheKey] = Pair(currentTime, screenTime)
+
+        return screenTime
+    }
+
+    /**
+     * Clear the screen time cache
+     * Call this when data needs to be refreshed (e.g., on app foreground)
+     */
+    private fun clearScreenTimeCache() {
+        screenTimeCache.clear()
     }
 }
