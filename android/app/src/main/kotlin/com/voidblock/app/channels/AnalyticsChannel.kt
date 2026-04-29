@@ -110,7 +110,11 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 val days = call.argument<Int>("days") ?: 1
                 getPeakUsagePattern(days, result)
             }
-            
+
+            "getComparisonData" -> {
+                getComparisonData(result)
+            }
+
             else -> result.notImplemented()
         }
     }
@@ -723,16 +727,152 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
     private fun addDurationToHours(start: Long, end: Long, hourlyUsage: LongArray, dayStart: Long) {
         var s = start
         val e = end
-        
+
         while (s < e) {
             val hourIndex = ((s - dayStart) / 3600000).toInt()
             if (hourIndex !in 0..23) break
-            
+
             val hourEnd = dayStart + (hourIndex + 1) * 3600000
             val fragmentEnd = minOf(e, hourEnd)
-            
+
             hourlyUsage[hourIndex] += (fragmentEnd - s)
             s = fragmentEnd
         }
+    }
+
+    /**
+     * Get comparison data for screen time and time saved
+     * Compares current week/day with previous week/day
+     */
+    private fun getComparisonData(result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                val currentTime = System.currentTimeMillis()
+                val cal = Calendar.getInstance()
+
+                // Calculate week boundaries (Sunday to Saturday)
+                cal.timeInMillis = currentTime
+                val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
+                val daysSinceSunday = if (dayOfWeek == Calendar.SUNDAY) 0 else dayOfWeek
+                val currentWeekStart = currentTime - (daysSinceSunday * 24 * 60 * 60 * 1000L)
+                val previousWeekStart = currentWeekStart - (7 * 24 * 60 * 60 * 1000L)
+                val previousWeekEnd = currentWeekStart
+
+                // Calculate day boundaries
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+                val todayStart = cal.timeInMillis
+                val sameDayLastWeekStart = todayStart - (7 * 24 * 60 * 60 * 1000L)
+                val sameDayLastWeekEnd = sameDayLastWeekStart + (24 * 60 * 60 * 1000L)
+
+                val comparisonData = withContext(Dispatchers.IO) {
+                    // Get system usage (screen time)
+                    val currentWeekSystemUsage = usageStatsManager.queryAndAggregateUsageStats(currentWeekStart, currentTime)
+                    val currentWeekScreenTime = currentWeekSystemUsage.values.sumOf { it.totalTimeInForeground }
+
+                    val previousWeekSystemUsage = usageStatsManager.queryAndAggregateUsageStats(previousWeekStart, previousWeekEnd)
+                    val previousWeekScreenTime = previousWeekSystemUsage.values.sumOf { it.totalTimeInForeground }
+
+                    val todaySystemUsage = usageStatsManager.queryAndAggregateUsageStats(todayStart, currentTime)
+                    val todayScreenTime = todaySystemUsage.values.sumOf { it.totalTimeInForeground }
+
+                    val sameDayLastWeekSystemUsage = usageStatsManager.queryAndAggregateUsageStats(sameDayLastWeekStart, sameDayLastWeekEnd)
+                    val sameDayLastWeekScreenTime = sameDayLastWeekSystemUsage.values.sumOf { it.totalTimeInForeground }
+
+                    // Get focus time (time saved)
+                    val currentWeekSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(currentWeekStart, currentTime)
+                    val currentWeekFocusTime = mergeIntervals(currentWeekSessions, currentWeekStart, currentTime)
+
+                    val previousWeekSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(previousWeekStart, previousWeekEnd)
+                    val previousWeekFocusTime = mergeIntervals(previousWeekSessions, previousWeekStart, previousWeekEnd)
+
+                    val todaySessions = database.focusSessionDao().getOverlappingSessionsExcludingType(todayStart, currentTime)
+                    val todayFocusTime = mergeIntervals(todaySessions, todayStart, currentTime)
+
+                    val sameDayLastWeekSessions = database.focusSessionDao().getOverlappingSessionsExcludingType(sameDayLastWeekStart, sameDayLastWeekEnd)
+                    val sameDayLastWeekFocusTime = mergeIntervals(sameDayLastWeekSessions, sameDayLastWeekStart, sameDayLastWeekEnd)
+
+                    // Calculate averages (divide by days in the period)
+                    val currentWeekDays = maxOf(1, daysSinceSunday)
+                    val currentWeekAverageScreenTime = currentWeekScreenTime / currentWeekDays
+                    val currentWeekAverageFocusTime = currentWeekFocusTime / currentWeekDays
+
+                    val previousWeekAverageScreenTime = previousWeekScreenTime / 7
+                    val previousWeekAverageFocusTime = previousWeekFocusTime / 7
+
+                    // Calculate percentage changes
+                    val screenTimeWeekChange = calculatePercentageChange(currentWeekAverageScreenTime, previousWeekAverageScreenTime)
+                    val screenTimeDayChange = calculatePercentageChange(todayScreenTime, sameDayLastWeekScreenTime)
+                    val focusTimeWeekChange = calculatePercentageChange(currentWeekAverageFocusTime, previousWeekAverageFocusTime)
+                    val focusTimeDayChange = calculatePercentageChange(todayFocusTime, sameDayLastWeekFocusTime)
+
+                    mapOf(
+                        "screenTime" to mapOf(
+                            "lastWeekAverage" to (previousWeekAverageScreenTime / 60000).toInt(),
+                            "currentWeekAverage" to (currentWeekAverageScreenTime / 60000).toInt(),
+                            "currentDayTotal" to (todayScreenTime / 60000).toInt(),
+                            "lastWeekSameDay" to (sameDayLastWeekScreenTime / 60000).toInt(),
+                            "weekOverWeekChange" to screenTimeWeekChange,
+                            "dayOverDayChange" to screenTimeDayChange
+                        ),
+                        "timeSaved" to mapOf(
+                            "lastWeekAverage" to (previousWeekAverageFocusTime / 60000).toInt(),
+                            "currentWeekAverage" to (currentWeekAverageFocusTime / 60000).toInt(),
+                            "currentDayTotal" to (todayFocusTime / 60000).toInt(),
+                            "lastWeekSameDay" to (sameDayLastWeekFocusTime / 60000).toInt(),
+                            "weekOverWeekChange" to focusTimeWeekChange,
+                            "dayOverDayChange" to focusTimeDayChange
+                        )
+                    )
+                }
+
+                result.success(comparisonData)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                result.error("COMPARISON_ERROR", e.message, null)
+            }
+        }
+    }
+
+    /**
+     * Merge overlapping focus session intervals
+     */
+    private fun mergeIntervals(sessions: List<com.voidblock.app.data.database.entities.FocusSessionEntity>, startTime: Long, endTime: Long): Long {
+        val intervals = sessions.map {
+            maxOf(startTime, it.startTime) to minOf(endTime, it.endTime ?: endTime)
+        }.filter { it.first < it.second }.sortedBy { it.first }
+
+        var totalFocusTime = 0L
+        if (intervals.isNotEmpty()) {
+            var currentStart = intervals[0].first
+            var currentEnd = intervals[0].second
+
+            for (i in 1 until intervals.size) {
+                val nextStart = intervals[i].first
+                val nextEnd = intervals[i].second
+
+                if (nextStart <= currentEnd) {
+                    currentEnd = maxOf(currentEnd, nextEnd)
+                } else {
+                    totalFocusTime += (currentEnd - currentStart)
+                    currentStart = nextStart
+                    currentEnd = nextEnd
+                }
+            }
+            totalFocusTime += (currentEnd - currentStart)
+        }
+
+        return totalFocusTime
+    }
+
+    /**
+     * Calculate percentage change between current and previous values
+     * Returns positive for increase, negative for decrease
+     */
+    private fun calculatePercentageChange(current: Long, previous: Long): Double {
+        if (previous == 0L) return 0.0
+        return ((current - previous).toDouble() / previous.toDouble()) * 100.0
     }
 }

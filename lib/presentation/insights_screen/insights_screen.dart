@@ -4,7 +4,8 @@ import '../../widgets/custom_app_bar.dart';
 import '../widgets/reports/weekly_bar_chart.dart';
 import '../widgets/reports/monthly_activity_grid.dart';
 import '../widgets/reports/app_usage_pie_chart.dart';
-import '../widgets/reports/productivity_trend_chart.dart';
+import '../widgets/reports/screen_time_comparison_card.dart';
+import '../widgets/reports/time_saved_comparison_card.dart';
 import '../widgets/reports/recommendations_widget.dart';
 
 /// Insights Screen - Displays detailed productivity analytics and insights
@@ -30,6 +31,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     final dailyStatsList = await _analyticsService.getDailyStats(days: 30);
     final usageStats = await _analyticsService.getMostUsedApps(limit: 5);
     final insights = await _analyticsService.getInsights(days: 7);
+    final comparisonData = await _analyticsService.getComparisonData();
 
     // Convert List<Map> to Map<DateString, Minutes> for easier chart consumption
     final Map<String, dynamic> dailyStatsMap = {};
@@ -46,6 +48,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       'dailyStats': dailyStatsMap,
       'usageStats': usageStats,
       'insights': insights,
+      'comparisonData': comparisonData,
     };
   }
 
@@ -80,19 +83,27 @@ class _InsightsScreenState extends State<InsightsScreen> {
                     [];
             final insights =
                 (data['insights'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+            final comparisonData =
+                data['comparisonData'] as Map<String, dynamic>? ?? {};
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  ScreenTimeComparisonCard(
+                    comparisonData: comparisonData,
+                  ),
+                  const SizedBox(height: 16),
+                  TimeSavedComparisonCard(
+                    comparisonData: comparisonData,
+                  ),
+                  const SizedBox(height: 16),
                   WeeklyBarChart(dailyStats: dailyStats),
                   const SizedBox(height: 16),
                   MonthlyActivityGrid(dailyStats: dailyStats),
                   const SizedBox(height: 16),
                   AppUsagePieChart(appUsageData: usageStats),
-                  const SizedBox(height: 16),
-                  ProductivityTrendChart(dailyStats: dailyStats),
                   const SizedBox(height: 16),
                   RecommendationsWidget(
                     insights: insights,

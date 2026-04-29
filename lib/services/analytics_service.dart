@@ -230,4 +230,15 @@ class AnalyticsService {
       return List.filled(24, 0);
     }
   }
+
+  /// Get comparison data for screen time and time saved
+  Future<Map<String, dynamic>> getComparisonData() async {
+    try {
+      final result = await platform.invokeMethod('getComparisonData');
+      return Map<String, dynamic>.from(result ?? {});
+    } on PlatformException catch (e) {
+      print('Error getting comparison data: ${e.message}');
+      return {};
+    }
+  }
 }
