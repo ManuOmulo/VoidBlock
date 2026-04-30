@@ -60,6 +60,9 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
     final theme = Theme.of(context);
     final remainingData = _calculateRemaining();
     final remaining = remainingData['minutes'] as int;
+    final hours = remaining ~/ 60;
+    final mins = remaining % 60;
+    final timeDisplay = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
     final isPaused = (_activeSession!['isPaused'] as bool?) ?? false;
     final apps = (_activeSession!['blockedApps'] as List?) ?? [];
     final isStrictMode = (_activeSession!['isStrictMode'] as bool?) ?? false;
@@ -183,7 +186,7 @@ class ActiveSessionWidgetState extends State<ActiveSessionWidget> {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             Text(
-                              '${remaining}m',
+                              timeDisplay,
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,

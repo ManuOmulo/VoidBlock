@@ -44,19 +44,19 @@ class BlockingService : Service() {
 
     // Track blocked packages per source
     private var blockedPackages = mutableSetOf<String>()
-    
+
     // Manual blocking (Set is fine, only one session at a time)
     private var manualBlockedPackages = mutableSetOf<String>()
-    
+
     // Schedule blocking: Map<ScheduleId, Set<PackageName>>
     // This allows multiple schedules to block the same app without unblocking it early
     private var activeScheduleApps = java.util.concurrent.ConcurrentHashMap<Long, Set<String>>()
-    
+
     // App Limits (Set is fine, limits are additive)
     private var limitBlockedPackages = mutableSetOf<String>()
-    
+
     private var isMonitoring = false
-    
+
     // Window Manager for Overlay
     private lateinit var windowManager: WindowManager
     private var currentOverlayView: View? = null
@@ -65,7 +65,7 @@ class BlockingService : Service() {
     private var lastDismissalTime: Long = 0  // Cooldown after user clicks "Close"
     private var overlayRemovalRequestedAt: Long = 0  // Delayed removal during swipe animations
     private var lastAccessibilityBlockedAt: Long = 0  // Trust Accessibility detection for a period
-    
+
     // Session Tracking
     private var currentForegroundPackage: String? = null
     private var currentSessionStartTime: Long = 0
@@ -79,11 +79,11 @@ class BlockingService : Service() {
         const val ACTION_STOP_SCHEDULE = "com.voidblock.app.service.STOP_SCHEDULE"
         const val ACTION_UPDATE_BLOCKED_APPS = "com.voidblock.app.service.UPDATE_BLOCKED_APPS"
         const val ACTION_ACCESSIBILITY_EVENT = "com.voidblock.app.service.ACCESSIBILITY_EVENT"
-        
+
         const val EXTRA_APP_PACKAGES = "app_packages"
         const val EXTRA_SCHEDULE_ID = "schedule_id"
         const val EXTRA_PACKAGE_NAME = "package_name"
-        
+
         const val CHECK_INTERVAL_MS = 500L
         const val LIMIT_CHECK_INTERVAL_MS = 60000L
     }
@@ -92,17 +92,17 @@ class BlockingService : Service() {
         super.onCreate()
         usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        
+
         val db = AppDatabase.getInstance(applicationContext)
         blockedAppDao = db.blockedAppDao()
         appLimitDao = db.appLimitDao()
         blockingSessionDao = db.blockingSessionDao()
         sessionBlockedAppDao = db.sessionBlockedAppDao()
         focusSessionDao = db.focusSessionDao()
-        
+
         notificationHelper = NotificationHelper(this)
         startForeground(NotificationHelper.ID_SERVICE, notificationHelper.getServiceNotification("Monitoring apps..."))
-        
+
         // Clean up any stale sessions
         cleanupDanglingSessions()
     }
@@ -169,7 +169,7 @@ class BlockingService : Service() {
 
         return START_STICKY
     }
-    
+
     override fun onBind(intent: Intent?): IBinder? {
         return null
     }
@@ -179,7 +179,7 @@ class BlockingService : Service() {
         isMonitoring = false
         monitoringJob?.cancel()
         removeOverlay()
-        
+
         // End all active sessions
         activeFocusSessionIds.keys.forEach { key ->
              val type = key.split("_")[0]
@@ -205,7 +205,7 @@ class BlockingService : Service() {
                 // Load blocked apps from database for this schedule
                 val apps = blockedAppDao.getBlockedAppsForScheduleSync(scheduleId)
                 val appSet = apps.map { it.packageName }.toSet()
-                
+
                 // Store in Map under Schedule ID
                 activeScheduleApps[scheduleId] = appSet
                 android.util.Log.d("BlockingService", "Schedule $scheduleId added/updated with ${appSet.size} apps")
@@ -227,10 +227,10 @@ class BlockingService : Service() {
             }
 
             recalculateBlockedPackages()
-            
+
             // Log for debugging
             logActiveSchedules()
-            
+
             startMonitoring()
             updateNotification("Blocking ${blockedPackages.size} apps")
         }
@@ -246,43 +246,43 @@ class BlockingService : Service() {
      * Better: The caller SHOULD pass the ID.
      * Checking existing calls: ScheduleChannel passes "action = STOP_SCHEDULE" and extras.
      * I need to make sure I can remove by ID.
-     * 
+     *
      * IMPORTANT: The previous implementation of ACTION_STOP_SCHEDULE passed EXTRA_APP_PACKAGES.
      * But it didn't pass EXTRA_SCHEDULE_ID usually?
      * Let's look at ScheduleChannel again.
      * In toggleSchedule/deleteSchedule/pauseSchedule, it sets ACTION_STOP_SCHEDULE and passes blockedApps list.
      * It does NOT pass schedule ID in the intent currently!
-     * 
+     *
      * PROBLEM: We need the Schedule ID to remove it from the Map.
      * FIX: I will infer it if possible, OR I will assume updateBlockedPackages will clean it up.
      * BUT updateBlockedPackages is not called on stop.
-     * 
+     *
      * Wait, if I change the logic, I need to ensure the caller sends the ID.
      * I can't easily change the caller (ScheduleChannel.kt) in this same atomic step if I only edit this file.
      * ALTHOUGH, ScheduleChannel.kt IS in the codebase and I can edit it.
-     * 
-     * ALTERNATIVE: For this step, I will modify this method to accept ID if present, 
+     *
+     * ALTERNATIVE: For this step, I will modify this method to accept ID if present,
      * but if not (legacy call), I might have to do a somewhat expensive scan or just re-sync everything.
-     * 
+     *
      * ACTUALLY, checking ScheduleChannel code I read earlier:
      * It sends: ACTION_STOP_SCHEDULE and EXTRA_APP_PACKAGES.
      * It does NOT send EXTRA_SCHEDULE_ID.
-     * 
-     * STRATEGY: 
+     *
+     * STRATEGY:
      * 1. I will assume for this specific refactor that I will ALSO update ScheduleChannel to send the ID.
      *    OR I can just call updateBlockedApps() which re-syncs everything from DB.
-     * 2. Re-syncing from DB is safer and cleaner. 
-     *    `updateBlockedApps` pulls "Active" schedules. 
+     * 2. Re-syncing from DB is safer and cleaner.
+     *    `updateBlockedApps` pulls "Active" schedules.
      *    If a schedule was just paused/deleted in DB (which happens before the service call),
      *    then `updateBlockedApps` will see it's gone and remove it from the Map.
-     * 
+     *
      * So, implementation: stopSchedule will just call updateBlockedApps().
      */
     private fun stopSchedule(packages: ArrayList<String>?) {
         // We ignore the packages list now and rely on a full re-sync from DB
         // This ensures the Map activeScheduleApps is exactly in sync with DB state
         android.util.Log.d("BlockingService", "stopSchedule called - Triggering full re-sync")
-        updateBlockedApps() 
+        updateBlockedApps()
     }
 
     /**
@@ -290,21 +290,21 @@ class BlockingService : Service() {
      */
     private fun recalculateBlockedPackages() {
         blockedPackages.clear()
-        
+
         // 1. Add all manual apps
         blockedPackages.addAll(manualBlockedPackages)
-        
+
         // 2. Add all apps from ALL active schedules
         activeScheduleApps.values.forEach { appSet ->
             blockedPackages.addAll(appSet)
         }
-        
+
         // 3. Add limit apps
         blockedPackages.addAll(limitBlockedPackages)
-        
+
         android.util.Log.d("BlockingService", "Recalculated blocked packages. Total: ${blockedPackages.size}")
     }
-    
+
     private fun logActiveSchedules() {
         android.util.Log.d("BlockingService", "Active Schedules map size: ${activeScheduleApps.size}")
         activeScheduleApps.forEach { (id, apps) ->
@@ -323,18 +323,18 @@ class BlockingService : Service() {
                 // We use the DAO to get the entities, not just the list of strings
                 val database = AppDatabase.getInstance(applicationContext)
                 val activeSchedules = database.scheduleDao().getActiveSchedulesSync()
-                
+
                 val userTime = Calendar.getInstance()
                 val currentDay = userTime.get(Calendar.DAY_OF_WEEK) - 1 // 0-6
                 val currentMinutes = userTime.get(Calendar.HOUR_OF_DAY) * 60 + userTime.get(Calendar.MINUTE)
-                
+
                 val validScheduleIds = mutableSetOf<Long>()
-                
+
                 // 2. Filter schedules that are ACTUALLY active right now (time window check)
                 activeSchedules.forEach { schedule ->
                     // Skip if paused (already filtered by query usually, but double check)
                     if (schedule.isPaused) return@forEach
-                    
+
                     // Check Day
                     // JSON parsing of [0,1,2] from string
                     val days = try {
@@ -342,16 +342,16 @@ class BlockingService : Service() {
                              (0 until arr.length()).map { arr.getInt(it) }
                          }
                     } catch (e: Exception) { emptyList<Int>() }
-                    
+
                     if (!days.contains(currentDay)) return@forEach
-                    
+
                     // Check Time
                     val startParts = schedule.startTime.split(":")
                     val startMins = startParts[0].toInt() * 60 + startParts[1].toInt()
-                    
+
                     val endParts = schedule.endTime.split(":")
                     val endMins = endParts[0].toInt() * 60 + endParts[1].toInt()
-                    
+
                     val isRunning = if (endMins < startMins) {
                          // Overnight
                          currentMinutes >= startMins || currentMinutes < endMins
@@ -359,21 +359,21 @@ class BlockingService : Service() {
                          // Standard
                          currentMinutes >= startMins && currentMinutes < endMins
                     }
-                    
+
                     if (isRunning) {
                         validScheduleIds.add(schedule.id)
-                        
+
                         // Load apps for this valid schedule if not already loaded
                         if (!activeScheduleApps.containsKey(schedule.id)) {
                              val apps = blockedAppDao.getBlockedAppsForScheduleSync(schedule.id)
                              activeScheduleApps[schedule.id] = apps.map { it.packageName }.toSet()
-                             
+
                              // Also start focus session tracking if missing
                              startFocusSession("SCHEDULE", schedule.id, 0)
                         }
                     }
                 }
-                
+
                 // 3. Remove schedules from Map that are no longer valid
                 val iterator = activeScheduleApps.keys.iterator()
                 while (iterator.hasNext()) {
@@ -667,7 +667,7 @@ class BlockingService : Service() {
                     overlayRemovalRequestedAt = 0L  // Reset removal timer
                     return
                 }
-                
+
                 if (overlayRemovalRequestedAt == 0L) {
                     // First time seeing non-blocked app, start the timer
                     overlayRemovalRequestedAt = now
@@ -692,12 +692,12 @@ class BlockingService : Service() {
     private suspend fun logBlockedAttempt(packageName: String) {
         val now = System.currentTimeMillis()
         val lastLogged = lastLoggedStatTime[packageName] ?: 0L
-        
+
         // Only log 1 "try" per minute to avoid inflation
         if (now - lastLogged < 60_000) {
             return
         }
-        
+
         lastLoggedStatTime[packageName] = now
 
         try {
@@ -803,7 +803,7 @@ class BlockingService : Service() {
                 restrictedText.text = "VoidBlock restricted $appName"
 
                 titleText.typeface = robotoBlack // Making it "thicker" as requested
-                
+
                 messageText.typeface = robotoNormal
                 messageText.text = MotivationalQuotes.getRandomQuote()
 
@@ -862,7 +862,7 @@ class BlockingService : Service() {
                         or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                         or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                         or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR)
-                
+
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     @Suppress("DEPRECATION")
                     overlayView.systemUiVisibility = overlayView.systemUiVisibility or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
