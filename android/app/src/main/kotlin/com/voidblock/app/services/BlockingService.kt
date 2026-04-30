@@ -478,17 +478,14 @@ class BlockingService : Service() {
             val startOfDay = calendar.timeInMillis
             val currentTime = System.currentTimeMillis()
 
-            val stats = usageStatsManager.queryAndAggregateUsageStats(startOfDay, currentTime)
             val newLimitBlocked = mutableSetOf<String>()
 
             val newlyExceededLimits = activeLimits.filter { limit ->
                 if (limit.unlockedUntilMidnight) false
                 else {
                     val pgs = appLimitDao.getPackageNamesForLimit(limit.id)
-                    val aggregateUsageMillis = stats.filter { pgs.contains(it.key) }
-                        .values.sumOf { it.totalTimeInForeground }
                     val eventUsageMillis = getAccurateUsageToday(pgs.toSet())
-                    val totalUsageMinutes = maxOf(aggregateUsageMillis, eventUsageMillis) / (60 * 1000)
+                    val totalUsageMinutes = eventUsageMillis / (60 * 1000)
 
                     val exceeded = totalUsageMinutes >= limit.limitMinutes
                     if (exceeded) {
