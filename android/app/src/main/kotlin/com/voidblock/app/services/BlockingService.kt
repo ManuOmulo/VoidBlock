@@ -291,16 +291,20 @@ class BlockingService : Service() {
     private fun recalculateBlockedPackages() {
         blockedPackages.clear()
 
-        // 1. Add all manual apps
-        blockedPackages.addAll(manualBlockedPackages)
-
-        // 2. Add all apps from ALL active schedules
+        // 1. Add all apps from ALL active schedules (highest priority)
         activeScheduleApps.values.forEach { appSet ->
             blockedPackages.addAll(appSet)
         }
 
-        // 3. Add limit apps
-        blockedPackages.addAll(limitBlockedPackages)
+        // 2. Add all manual apps
+        blockedPackages.addAll(manualBlockedPackages)
+
+        // 3. Add limit apps (lowest priority - only if not already blocked)
+        limitBlockedPackages.forEach { pkg ->
+            if (!blockedPackages.contains(pkg)) {
+                blockedPackages.add(pkg)
+            }
+        }
 
         android.util.Log.d("BlockingService", "Recalculated blocked packages. Total: ${blockedPackages.size}")
     }

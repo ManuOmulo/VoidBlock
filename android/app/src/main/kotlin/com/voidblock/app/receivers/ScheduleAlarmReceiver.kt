@@ -67,7 +67,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                     if (blockedApps.isNotEmpty()) {
                         // Start blocking service
                         val serviceIntent = Intent(context, BlockingService::class.java).apply {
-                            action = BlockingService.ACTION_START_BLOCKING
+                            action = BlockingService.ACTION_START_SCHEDULE
                             putExtra(BlockingService.EXTRA_SCHEDULE_ID, scheduleId)
                             putStringArrayListExtra(
                                 BlockingService.EXTRA_APP_PACKAGES,

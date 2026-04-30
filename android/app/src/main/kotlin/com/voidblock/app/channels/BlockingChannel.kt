@@ -673,7 +673,7 @@ class BlockingChannel(private val context: Context) : MethodChannel.MethodCallHa
 
                     if (blockedApps.isNotEmpty()) {
                         val serviceIntent = Intent(context, BlockingService::class.java).apply {
-                            action = BlockingService.ACTION_START_BLOCKING
+                            action = BlockingService.ACTION_START_SCHEDULE
                             putExtra(BlockingService.EXTRA_SCHEDULE_ID, pausedSchedule.id)
                             putStringArrayListExtra(
                                 BlockingService.EXTRA_APP_PACKAGES,
