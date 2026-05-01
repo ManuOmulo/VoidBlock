@@ -279,6 +279,8 @@ class BlockingService : Service() {
      * So, implementation: stopSchedule will just call updateBlockedApps().
      */
     private fun stopSchedule(packages: ArrayList<String>?) {
+        // End all schedule focus sessions to prevent time accumulation
+        endFocusSession("SCHEDULE", null)
         // We ignore the packages list now and rely on a full re-sync from DB
         // This ensures the Map activeScheduleApps is exactly in sync with DB state
         android.util.Log.d("BlockingService", "stopSchedule called - Triggering full re-sync")
