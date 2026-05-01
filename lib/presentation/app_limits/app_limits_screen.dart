@@ -148,7 +148,7 @@ class _AppLimitsScreenState extends State<AppLimitsScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
           onTap: () {
-            // TODO: Open limit details or edit
+            _handleLimitTap(limit);
           },
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -417,6 +417,24 @@ class _AppLimitsScreenState extends State<AppLimitsScreen> {
     );
   }
 
+  void _handleLimitTap(AppLimit limit) {
+    // Check for HARD mode lock
+    if (limit.isStrictMode && limit.strictModeLevel == 'HARD') {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      if (limit.hardModeEndsAt != null && now < limit.hardModeEndsAt!) {
+        _showLockedDialog(limit.hardModeEndsAt!);
+        return;
+      }
+    }
+    // Navigate to edit screen
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateAppLimitScreen(limit: limit),
+      ),
+    ).then((_) => _loadLimits());
+  }
+
   Future<void> _confirmDelete(AppLimit limit) async {
     // 1. HARD Mode Check
     if (limit.isStrictMode && limit.strictModeLevel == 'HARD') {
@@ -558,7 +576,7 @@ class _AppLimitsScreenState extends State<AppLimitsScreen> {
             ),
             const SizedBox(height: 12),
             Text(
-              'This limit is in Hard Mode and cannot be deleted until:',
+              'This limit is in Hard Mode and cannot be edited or deleted until:',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey.shade700),
             ),
