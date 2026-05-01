@@ -312,7 +312,7 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
     final ratioColor = _getRatioColor(ratio, theme);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.only(left: 16, top: 16, bottom: 16, right: 8),
       decoration: BoxDecoration(
         color: _getContainerColor(ratioColor).withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(16),
@@ -328,7 +328,7 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Productive Ratio',
+                  'Productive Ratio (Today)',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,

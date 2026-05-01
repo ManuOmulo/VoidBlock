@@ -373,28 +373,28 @@ class InsightsGenerator {
         return when {
             productiveRatio >= 50 -> Insight(
                 type = "ACHIEVEMENT",
-                title = "Excellent Focus!",
+                title = "Excellent Focus! (7-day avg)",
                 message = "Your productive ratio is outstanding$contextSuffix",
                 value = "${productiveRatio.toInt()}%",
                 severity = "POSITIVE"
             )
             productiveRatio >= 30 -> Insight(
                 type = "TREND",
-                title = "Good Progress",
+                title = "Good Progress (7-day avg)",
                 message = "Your productive ratio is good$contextSuffix",
                 value = "${productiveRatio.toInt()}%",
                 severity = "NEUTRAL"
             )
             productiveRatio >= 15 -> Insight(
                 type = "RECOMMENDATION",
-                title = "Room for Improvement",
+                title = "Room for Improvement (7-day avg)",
                 message = "Your productive ratio needs improvement$contextSuffix",
                 value = "${productiveRatio.toInt()}%",
                 severity = "RECOMMENDATION"
             )
             else -> Insight(
                 type = "RECOMMENDATION",
-                title = "Low Productive Ratio",
+                title = "Low Productive Ratio (7-day avg)",
                 message = "Your productive ratio is low. Try longer focus sessions$contextSuffix",
                 value = "${productiveRatio.toInt()}%",
                 severity = "RECOMMENDATION"
