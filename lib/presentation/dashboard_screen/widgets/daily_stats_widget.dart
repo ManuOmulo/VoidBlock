@@ -324,26 +324,28 @@ class DailyStatsWidgetState extends State<DailyStatsWidget> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Productive Ratio (Today)',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                    color: ratioColor,
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Productive Ratio (Today)',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                      color: ratioColor,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _getRatioMessage(ratio),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: ratioColor.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w500,
+                  const SizedBox(height: 8),
+                  Text(
+                    _getRatioMessage(ratio),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: ratioColor.withValues(alpha: 0.8),
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
             Text(
               '$ratio%',
