@@ -50,8 +50,13 @@ class AppLimitChannel(private val context: Context) : MethodChannel.MethodCallHa
                 val limitMinutes = call.argument<Int>("limitMinutes") ?: 0
                 val apps = call.argument<List<Map<String, String>>>("apps") ?: emptyList()
                 val isActive = call.argument<Boolean>("isActive") ?: true
+                val isStrictMode = call.argument<Boolean>("isStrictMode") ?: false
+                val strictModeLevel = call.argument<String>("strictModeLevel") ?: "NONE"
+                val strictModePin = call.argument<String>("strictModePin")
+                val strictModeCooldownMinutes = call.argument<Int>("strictModeCooldownMinutes")
+                val hardModeDurationMinutes = call.argument<Int>("hardModeDurationMinutes")
                 
-                updateLimit(id, name, limitMinutes, apps, isActive, result)
+                updateLimit(id, name, limitMinutes, apps, isActive, isStrictMode, strictModeLevel, strictModePin, strictModeCooldownMinutes, hardModeDurationMinutes, result)
             }
             "deleteLimit" -> {
                 val id = (call.argument<Any>("id") as? Number)?.toLong() ?: 0L
@@ -231,16 +236,38 @@ class AppLimitChannel(private val context: Context) : MethodChannel.MethodCallHa
         limitMinutes: Int,
         apps: List<Map<String, String>>,
         isActive: Boolean,
+        isStrictMode: Boolean,
+        strictModeLevel: String,
+        strictModePin: String?,
+        strictModeCooldownMinutes: Int?,
+        hardModeDurationMinutes: Int?,
         result: MethodChannel.Result
     ) {
         scope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     val existing = database.appLimitDao().getLimitById(id) ?: return@withContext
+                    
+                    // Calculate hardModeEndsAt if switching to HARD mode
+                    val hardModeEndsAt = if (strictModeLevel == "HARD" && hardModeDurationMinutes != null) {
+                        System.currentTimeMillis() + (hardModeDurationMinutes.toLong() * 60 * 1000)
+                    } else if (strictModeLevel != "HARD") {
+                        // Clear hard mode end time if switching away from HARD
+                        null
+                    } else {
+                        existing.hardModeEndsAt
+                    }
+                    
                     val updated = existing.copy(
                         name = name,
                         limitMinutes = limitMinutes,
-                        isActive = isActive
+                        isActive = isActive,
+                        isStrictMode = isStrictMode,
+                        strictModeLevel = strictModeLevel,
+                        strictModePin = strictModePin,
+                        strictModeCooldownMinutes = strictModeCooldownMinutes,
+                        hardModeDurationMinutes = hardModeDurationMinutes,
+                        hardModeEndsAt = hardModeEndsAt
                     )
                     database.appLimitDao().updateLimit(updated)
                     
