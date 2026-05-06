@@ -512,10 +512,24 @@ class BlockingService : Service() {
             }
 
             // End sessions for limits that are no longer exceeded
+            // First, check in-memory map (for sessions started during this service instance)
             activeFocusSessionIds.keys.filter { it.startsWith("LIMIT_") }.toList().forEach { key ->
                 val limitId = key.substringAfter("LIMIT_").toLongOrNull()
                 if (limitId != null && !newlyExceededLimitIds.contains(limitId)) {
                     endFocusSession("LIMIT", limitId)
+                }
+            }
+
+            // Second, check database for any stale LIMIT sessions (cleanup after service restart)
+            // This handles the case where the service restarted and activeFocusSessionIds was cleared
+            val activeLimitSessionsFromDb = focusSessionDao.getActiveSessions().filter { it.type == "LIMIT" }
+            activeLimitSessionsFromDb.forEach { session ->
+                val limitId = session.relatedId
+                if (limitId != null && !newlyExceededLimitIds.contains(limitId)) {
+                    android.util.Log.d("BlockingService", "Cleaning up stale LIMIT session for limitId: $limitId")
+                    scope.launch(Dispatchers.IO) {
+                        focusSessionDao.endSession(session.id, System.currentTimeMillis())
+                    }
                 }
             }
 
@@ -1005,10 +1019,24 @@ class BlockingService : Service() {
                 val dangling = focusSessionDao.getActiveSessions()
                 if (dangling.isNotEmpty()) {
                     val now = System.currentTimeMillis()
+                    val activeLimits = appLimitDao.getActiveLimits()
+                    val activeLimitIds = activeLimits.map { it.id }.toSet()
+
                     dangling.forEach { session ->
-                        focusSessionDao.endSession(session.id, now)
+                        if (session.type == "LIMIT") {
+                            // For LIMIT sessions, only end if the limit is no longer exceeded
+                            val limitId = session.relatedId
+                            if (limitId != null && !activeLimitIds.contains(limitId)) {
+                                android.util.Log.d("BlockingService", "Cleaning up stale LIMIT session for limitId: $limitId in cleanupDanglingSessions")
+                                focusSessionDao.endSession(session.id, now)
+                            }
+                        } else {
+                            // For MANUAL and SCHEDULE sessions, always end them on service restart
+                            // They will be recreated if needed by the service logic
+                            focusSessionDao.endSession(session.id, now)
+                        }
                     }
-                    android.util.Log.d("BlockingService", "Cleaned up ${dangling.size} dangling focus sessions.")
+                    android.util.Log.d("BlockingService", "Cleaned up dangling focus sessions.")
                 }
             } catch (e: Exception) {
                 android.util.Log.e("BlockingService", "Error cleaning up dangling sessions", e)
