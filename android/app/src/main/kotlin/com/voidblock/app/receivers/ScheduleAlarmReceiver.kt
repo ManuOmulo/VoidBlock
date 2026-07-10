@@ -108,8 +108,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 val database = AppDatabase.getInstance(context)
                 val schedule = database.scheduleDao().getScheduleById(scheduleId)
                 
-                if (schedule != null) {
-                    // Show notification
+                if (schedule != null && schedule.isActive && !schedule.isPaused) {
+                    // Show notification only if schedule was active
                     com.voidblock.app.utils.NotificationHelper(context).showScheduleEndNotification(schedule.name)
                     
                     // Get the blocked apps for this schedule
@@ -127,6 +127,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                         )
                     }
                     context.startService(serviceIntent)
+                } else if (schedule != null && (schedule.isPaused || !schedule.isActive)) {
+                    android.util.Log.d("ScheduleAlarmReceiver", "Schedule ${schedule.id} is inactive or paused, skipping end notification")
                 }
             } catch (e: Exception) {
                 e.printStackTrace()

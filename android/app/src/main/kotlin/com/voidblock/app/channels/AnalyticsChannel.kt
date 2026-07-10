@@ -352,7 +352,7 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                     // Calculate productive ratio: (focusTime / screenTime) × 100
                     val totalFocusTime = mergeIntervals(focusSessions, startTime, System.currentTimeMillis())
                     val productiveRatio = if (totalUsageTime > 0) {
-                        (totalFocusTime.toDouble() / totalUsageTime.toDouble()) * 100.0
+                        ((totalFocusTime.toDouble() / totalUsageTime.toDouble()) * 100.0).coerceIn(0.0, 100.0)
                     } else 0.0
 
                     insightsGenerator.generateInsights(dailySummary, appBreakdown, logs, focusSessions, productiveRatio)
@@ -810,19 +810,19 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
 
                     // Calculate productive ratio: (focusTime / screenTime) × 100
                     val currentWeekAverageRatio = if (currentWeekAverageScreenTime > 0) {
-                        (currentWeekAverageFocusTime.toDouble() / currentWeekAverageScreenTime.toDouble()) * 100.0
+                        ((currentWeekAverageFocusTime.toDouble() / currentWeekAverageScreenTime.toDouble()) * 100.0).coerceIn(0.0, 100.0)
                     } else 0.0
 
                     val previousWeekAverageRatio = if (previousWeekScreenTime > 0) {
-                        (previousWeekFocusTime.toDouble() / previousWeekScreenTime.toDouble()) * 100.0
+                        ((previousWeekFocusTime.toDouble() / previousWeekScreenTime.toDouble()) * 100.0).coerceIn(0.0, 100.0)
                     } else 0.0
 
                     val todayRatio = if (todayScreenTime > 0) {
-                        (todayFocusTime.toDouble() / todayScreenTime.toDouble()) * 100.0
+                        ((todayFocusTime.toDouble() / todayScreenTime.toDouble()) * 100.0).coerceIn(0.0, 100.0)
                     } else 0.0
 
                     val sameDayLastWeekRatio = if (sameDayLastWeekScreenTime > 0) {
-                        (sameDayLastWeekFocusTime.toDouble() / sameDayLastWeekScreenTime.toDouble()) * 100.0
+                        ((sameDayLastWeekFocusTime.toDouble() / sameDayLastWeekScreenTime.toDouble()) * 100.0).coerceIn(0.0, 100.0)
                     } else 0.0
 
                     val ratioWeekChange = calculatePercentageChange(currentWeekAverageRatio.toLong(), previousWeekAverageRatio.toLong())
