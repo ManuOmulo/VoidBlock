@@ -119,6 +119,11 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
                 getComparisonData(result)
             }
 
+            "getProductivityScoreBreakdown" -> {
+                val days = call.argument<Int>("days") ?: 7
+                getProductivityScoreBreakdown(days, result)
+            }
+
             else -> result.notImplemented()
         }
     }
@@ -251,21 +256,65 @@ class AnalyticsChannel(private val context: Context) : MethodChannel.MethodCallH
         scope.launch {
             try {
                 val startTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
-                
+
                 val score = withContext(Dispatchers.IO) {
                     val logs = database.usageLogDao().getLogsForPastDays(startTime)
                     val blockedCount = logs.filter { it.wasBlocked }.size
                     val totalBlockedTime = logs.filter { it.wasBlocked }.sumOf { it.durationMillis }
 
                     val totalUsageTime = calculateScreenTimeFromEventsCached(startTime, System.currentTimeMillis())
-                    
+
                     productivityCalculator.calculateProductivityScore(blockedCount, totalBlockedTime, totalUsageTime, days)
                 }
-                
+
                 result.success(score)
             } catch (e: Exception) {
                 e.printStackTrace()
                 result.error("SCORE_ERROR", e.message, null)
+            }
+        }
+    }
+
+    /**
+     * Get productivity score with detailed factor breakdown
+     */
+    private fun getProductivityScoreBreakdown(days: Int, result: MethodChannel.Result) {
+        scope.launch {
+            try {
+                val startTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+
+                val breakdown = withContext(Dispatchers.IO) {
+                    val logs = database.usageLogDao().getLogsForPastDays(startTime)
+                    val sessions = database.focusSessionDao().getOverlappingSessionsExcludingType(startTime, System.currentTimeMillis())
+
+                    val blockedAttempts = logs.count { it.wasBlocked }
+                    val totalBlockedTime = logs.filter { it.wasBlocked }.sumOf {
+                        (it.endTime ?: System.currentTimeMillis()) - it.startTime
+                    }
+                    val totalUsageTime = database.usageLogDao().getTotalUsageTimeSince(startTime)
+
+                    productivityCalculator.calculateProductivityScoreWithBreakdown(
+                        blockedAttempts,
+                        totalBlockedTime,
+                        totalUsageTime,
+                        days
+                    )
+                }
+
+                val breakdownMap = mapOf(
+                    "totalScore" to breakdown.totalScore,
+                    "blockedAttemptsScore" to breakdown.blockedAttemptsScore,
+                    "timeSavedScore" to breakdown.timeSavedScore,
+                    "focusRatioScore" to breakdown.focusRatioScore,
+                    "consistencyScore" to breakdown.consistencyScore,
+                    "usagePatternScore" to breakdown.usagePatternScore,
+                    "weights" to breakdown.weights.mapKeys { it.key }
+                )
+
+                result.success(breakdownMap)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                result.error("BREAKDOWN_ERROR", e.message, null)
             }
         }
     }

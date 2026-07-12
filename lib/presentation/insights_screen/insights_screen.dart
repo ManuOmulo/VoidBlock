@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/analytics_service.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../widgets/productivity_score_breakdown_widget.dart';
 import '../widgets/reports/weekly_bar_chart.dart';
 import '../widgets/reports/monthly_activity_grid.dart';
 import '../widgets/reports/app_usage_pie_chart.dart';
@@ -32,6 +33,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
     final usageStats = await _analyticsService.getMostUsedApps(limit: 5);
     final insights = await _analyticsService.getInsights(days: 7);
     final comparisonData = await _analyticsService.getComparisonData();
+    final scoreBreakdown = await _analyticsService.getProductivityScoreBreakdown(days: 7);
 
     // Convert List<Map> to Map<DateString, Minutes> for easier chart consumption
     final Map<String, dynamic> dailyStatsMap = {};
@@ -49,6 +51,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
       'usageStats': usageStats,
       'insights': insights,
       'comparisonData': comparisonData,
+      'scoreBreakdown': scoreBreakdown,
     };
   }
 
@@ -85,6 +88,8 @@ class _InsightsScreenState extends State<InsightsScreen> {
                 (data['insights'] as List?)?.cast<Map<String, dynamic>>() ?? [];
             final comparisonData =
                 data['comparisonData'] as Map<String, dynamic>? ?? {};
+            final scoreBreakdown =
+                data['scoreBreakdown'] as Map<String, dynamic>? ?? {};
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -97,6 +102,10 @@ class _InsightsScreenState extends State<InsightsScreen> {
                   const SizedBox(height: 16),
                   TimeSavedComparisonCard(
                     comparisonData: comparisonData,
+                  ),
+                  const SizedBox(height: 16),
+                  ProductivityScoreBreakdownWidget(
+                    breakdown: scoreBreakdown,
                   ),
                   const SizedBox(height: 16),
                   WeeklyBarChart(dailyStats: dailyStats),

@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 import 'dart:convert';
-import 'dart:typed_data';
 
 /**
  * Model for installed app information
@@ -142,6 +141,19 @@ class AnalyticsService {
     } on PlatformException catch (e) {
       print('Error getting productivity score: ${e.message}');
       return 0.0;
+    }
+  }
+
+  /// Get productivity score with detailed factor breakdown
+  Future<Map<String, dynamic>> getProductivityScoreBreakdown({int days = 7}) async {
+    try {
+      final result = await platform.invokeMethod('getProductivityScoreBreakdown', {
+        'days': days,
+      });
+      return Map<String, dynamic>.from(result);
+    } on PlatformException catch (e) {
+      print('Error getting productivity score breakdown: ${e.message}');
+      return {};
     }
   }
 

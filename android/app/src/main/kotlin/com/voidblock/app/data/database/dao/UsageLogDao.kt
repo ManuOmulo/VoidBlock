@@ -87,6 +87,9 @@ interface UsageLogDao {
         ORDER BY hour
     """)
     suspend fun getHourlyUsagePattern(startTime: Long): List<HourlyUsage>
+
+    @Query("SELECT SUM(endTime - startTime) FROM usage_logs WHERE startTime >= :startTime")
+    suspend fun getTotalUsageTimeSince(startTime: Long): Long
 }
 
 data class AppUsageSummary(
